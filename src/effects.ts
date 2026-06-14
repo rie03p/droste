@@ -68,6 +68,17 @@ vec2 baseZ(){
 
 vec4 sampleImg(vec2 uv){ return texture(u_img, uv); }
 
+// 蓄積点基準の差分 d に「表示の拡大率」「全体の向き」を適用する(Droste/Escher 用)
+vec2 applyFrame(vec2 d){
+  float a = u_resolution.x / u_resolution.y;
+  d.x *= a;
+  float c = cos(u_rotate), s = sin(u_rotate);
+  d = mat2(c, -s, s, c) * d;
+  d /= u_viewScale;     // 大きいほど寄る
+  d.x /= a;
+  return d;
+}
+
 // 中央の白い霧(Escher の Print Gallery 中心のような曇り)
 uniform float u_fogR;     // 半径(短辺基準, 0..)
 uniform float u_fogSoft;  // ぼかし幅
@@ -94,7 +105,7 @@ void main(){
 
   float lnf = log(max(u_zoomF, 1.0001));
   float s = exp(-mod(u_offset, lnf));               // (1/f, 1]
-  vec2 q = pstar + (vUv - pstar) * s;               // 蓄積点へズームイン
+  vec2 q = pstar + applyFrame(vUv - pstar) * s;     // 蓄積点へズームイン(拡大率/向きを反映)
 
   // 窓に入った座標は展開(T^-1)して元画像から取り直す。
   // 常にレベル0のフル解像度を参照するので、どのズーム段でも鮮明度が一定=継ぎ目が出ない。
@@ -127,7 +138,7 @@ void main(){
   vec2  pstar = (winC - 0.5 * size) / (1.0 - size);
   float lnf   = log(max(u_zoomF, 1.0001));
 
-  vec2 w  = cLog(vUv - pstar);                    // 出力の log-polar(蓄積点基準)
+  vec2 w  = cLog(applyFrame(vUv - pstar));        // 出力の log-polar(拡大率/向きを反映)
   vec2 beta = vec2(1.0, -u_strands * lnf / TAU);  // ねじれ(分岐切断を閉じる)
   vec2 wt = cMul(beta, w);
   wt.x -= u_offset;                               // 自己相似ズーム(螺旋状, 周期 lnf)

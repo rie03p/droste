@@ -45,6 +45,9 @@ export class Renderer {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    // 再帰の奥(縮小コピー)のエイリアシングを抑えるためミップマップを生成
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     this.hasImage = true;
   }
 

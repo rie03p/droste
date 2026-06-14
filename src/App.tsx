@@ -50,10 +50,10 @@ export default function App() {
       setTransform(IDENTITY_TRANSFORM);
     }
   };
-  const view = useMemo(() => dimsFromLongEdge(720, aspect), [aspect]);
+  const view = useMemo(() => dimsFromLongEdge(1080, aspect), [aspect]);
 
-  // トリミング結果を正方形に焼き込む
-  const square = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
+  // トリミング結果を正方形に焼き込む(高解像度でズーム時の粗さを抑える)
+  const square = useMemo(() => composeSquare(original, transform, 1536), [original, transform]);
 
   // Droste と Escher は同じ自己相似画像(窓に画像自身を埋め込み)を使う
   const isSelfSimilar = effect.id === "droste" || effect.id === "escher";
