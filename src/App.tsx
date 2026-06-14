@@ -55,8 +55,8 @@ export default function App() {
   // トリミング結果を正方形に焼き込む(高解像度でズーム時の粗さを抑える)
   const square = useMemo(() => composeSquare(original, transform, 1536), [original, transform]);
 
-  // Droste と Escher は同じ自己相似画像(窓に画像自身を埋め込み)を使う
-  const isSelfSimilar = effect.id === "droste" || effect.id === "escher";
+  // Droste / Escher / 対数 は同じ自己相似画像(窓に画像自身を埋め込み)を使う
+  const isSelfSimilar = effect.id === "droste" || effect.id === "escher" || effect.id === "log";
   // 窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
   // size はシェーダの窓サイズ(u_win.z)と完全一致させること(ずれるとループが崩れる)。
   const renderParams = useMemo(

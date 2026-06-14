@@ -79,6 +79,21 @@ vec2 applyFrame(vec2 d){
   return d;
 }
 
+// 自己相似画像の基本領域 [0,1]²\窓 へ座標を畳む(窓の中→展開 / 画像の外→収縮)。
+// 常にレベル0のフル解像度を参照するので、どのスケールでも鮮明度が一定。
+vec2 reduceToCell(vec2 q, vec2 winC, float size){
+  for (int i = 0; i < 96; i++) {
+    if (abs(q.x - winC.x) < 0.5 * size && abs(q.y - winC.y) < 0.5 * size) {
+      q = (q - winC) / size + 0.5;            // T^-1: 展開
+    } else if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) {
+      q = (q - 0.5) * size + winC;            // T: 収縮
+    } else {
+      break;
+    }
+  }
+  return q;
+}
+
 // 中央の白い霧(Escher の Print Gallery 中心のような曇り)
 uniform float u_fogR;     // 半径(短辺基準, 0..)
 uniform float u_fogSoft;  // ぼかし幅
@@ -106,17 +121,7 @@ void main(){
   float lnf = log(max(u_zoomF, 1.0001));
   float s = exp(-mod(u_offset, lnf));               // (1/f, 1]
   vec2 q = pstar + applyFrame(vUv - pstar) * s;     // 蓄積点へズームイン(拡大率/向きを反映)
-
-  // 窓に入った座標は展開(T^-1)して元画像から取り直す。
-  // 常にレベル0のフル解像度を参照するので、どのズーム段でも鮮明度が一定=継ぎ目が出ない。
-  // 上限は窓が大きい(f が小さい)ときに蓄積点付近まで展開しきるために十分大きく取る。
-  for (int i = 0; i < 96; i++) {
-    if (abs(q.x - cx) < 0.5 * size && abs(q.y - cy) < 0.5 * size) {
-      q = (q - winC) / size + 0.5;
-    } else {
-      break;
-    }
-  }
+  q = reduceToCell(q, winC, size);
   outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
@@ -143,17 +148,27 @@ void main(){
   vec2 wt = cMul(beta, w);
   wt.x -= u_offset;                               // 自己相似ズーム(螺旋状, 周期 lnf)
   vec2 q = pstar + cExp(wt);                      // 2D 平面へ
+  q = reduceToCell(q, winC, size);
+  outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
+}`;
 
-  // 自己相似画像の基本領域 [0,1]²\窓 へ畳む(窓の中→展開 / 画像の外→収縮)
-  for (int i = 0; i < 96; i++) {
-    if (abs(q.x - cx) < 0.5 * size && abs(q.y - cy) < 0.5 * size) {
-      q = (q - winC) / size + 0.5;                // T^-1: 展開
-    } else if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) {
-      q = (q - 0.5) * size + winC;                // T: 収縮
-    } else {
-      break;
-    }
-  }
+// --- 対数 (log-polar 展開) ---
+// 自己相似画像を複素 log で「帯」に展開して表示する。スケール自己相似が log では
+// 横方向の周期 lnf になるので、帯は横(周期 lnf)にも縦(角度 2π)にもシームレスにタイルし、
+// 横スクロール(=ズーム)でループする。出力 = 元画像の log をとったもの。
+const LOGPOLAR = /* glsl */ `
+uniform float u_zoomF;     // f = 1/size(窓から)
+uniform vec3  u_win;       // (cx, cy, size) — Droste と共有
+void main(){
+  float cx = u_win.x, cy = u_win.y, size = u_win.z;
+  vec2  winC  = vec2(cx, cy);
+  vec2  pstar = (winC - 0.5 * size) / (1.0 - size);
+  float lnf   = log(max(u_zoomF, 1.0001));
+
+  float u = (vUv.x - 0.5) * lnf + u_offset;   // 横: 対数半径(1周期 = lnf)
+  float v = (vUv.y - 0.5) * TAU;              // 縦: 角度(全周 = 2π)
+  vec2 q = pstar + cExp(vec2(u, v));
+  q = reduceToCell(q, winC, size);
   outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
@@ -202,6 +217,17 @@ export const EFFECTS: Effect[] = [
       // f は窓(範囲)から決まるので隠す。u_zoomF を設定するために params には残す
       { key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true },
     ],
+    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
+    sample: sampleCheckerboard,
+  },
+  {
+    id: "log",
+    name: "対数 (log-polar 展開)",
+    description:
+      "Droste と同じ窓で作った自己相似画像を複素 log で帯に展開して表示。スケール自己相似が log では横の周期になるので、横スクロール(ズーム)で帯がシームレスにループする。",
+    fragment: COMMON + LOGPOLAR,
+    // f は窓から決まるので隠す(u_zoomF 設定のため params には残す)
+    params: [{ key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true }],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
   },
