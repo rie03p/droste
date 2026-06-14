@@ -55,20 +55,20 @@ export default function App() {
   // トリミング結果を正方形に焼き込む
   const square = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
 
-  const isDroste = effect.id === "droste";
-  // Droste は窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
-  // ここの size はシェーダの窓サイズ(u_win.z)と完全一致させること。ずれると s が
-  // 窓サイズに到達せずループの継ぎ目に届かない(=途中で打ち切られる)。
+  // Droste と Escher は同じ自己相似画像(窓に画像自身を埋め込み)を使う
+  const isSelfSimilar = effect.id === "droste" || effect.id === "escher";
+  // 窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
+  // size はシェーダの窓サイズ(u_win.z)と完全一致させること(ずれるとループが崩れる)。
   const renderParams = useMemo(
-    () => (isDroste ? { ...params, zoomF: 1 / drosteRect.size } : params),
-    [isDroste, params, drosteRect.size]
+    () => (isSelfSimilar ? { ...params, zoomF: 1 / drosteRect.size } : params),
+    [isSelfSimilar, params, drosteRect.size]
   );
-  // Droste はビュー比のレベル0画像(再帰はシェーダ側)、それ以外は正方形クロップをそのまま
+  // 自己相似系はビュー比のレベル0画像(再帰はシェーダ側)、それ以外は正方形クロップをそのまま
   const texture = useMemo(
-    () => (isDroste ? makeCover(square, view.width, view.height) : square),
-    [isDroste, square, view.width, view.height]
+    () => (isSelfSimilar ? makeCover(square, view.width, view.height) : square),
+    [isSelfSimilar, square, view.width, view.height]
   );
-  const win = isDroste ? drosteRect : { cx: 0.5, cy: 0.5, size: 1 / 3 };
+  const win = isSelfSimilar ? drosteRect : { cx: 0.5, cy: 0.5, size: 1 / 3 };
 
   return (
     <div className="app">
@@ -118,7 +118,7 @@ export default function App() {
           fogStr={fogStr}
           onFogStr={setFogStr}
         />
-        {isDroste && <DrostePanel texture={texture} rect={drosteRect} onRect={setDrosteRect} />}
+        {isSelfSimilar && <DrostePanel texture={texture} rect={drosteRect} onRect={setDrosteRect} />}
         <ExportPanel
           getRenderer={() => rendererRef.current}
           effect={effect}

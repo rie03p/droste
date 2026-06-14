@@ -30,9 +30,9 @@ export class Renderer {
     this.gl = gl;
     this.texture = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    // Escher 渦は fract せず格子の外まで標本化するため、縁を反射でつなぐ
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+    // Droste/Escher は座標を基本領域 [0,1]² に畳んでから参照するので端は CLAMP で十分
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     // 1x1 のプレースホルダ

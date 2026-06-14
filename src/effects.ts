@@ -110,29 +110,40 @@ void main(){
 }`;
 
 // --- Escher 渦(ツイストあり) ---
-// 自己相似(スケール f)と分岐切断(角度の 2π 巻き戻り)を両立させるため、整数 b(螺旋の本数)と
-// k(巻きの密度)で格子 L=<(lnf,0),(0,2π)> を閉じる。両条件から
-//   lnf = 2π·√(b/k)   (= f = exp(2π√(b/k)) は自動で決まる)
-//   ねじれ p = (1, √(b·k))
-// 分岐切断 Δw=(0,2π) は Δuv=(-k,1)、スケール Δw=(lnf,0) は Δuv=(1,b) と
-// どちらも整数格子に乗るため、fract せず MIRRORED_REPEAT で標本化すれば
-// 画像の縁でも反射で連続=中心まで切れ目が出ない。
+// Droste と同じ自己相似画像(窓に自分自身を再帰的に埋め込んだもの)を元画像 B とし、
+// 出力点を蓄積点 p* 基準の log-polar にして、ねじれ β=(1, -strands·lnf/2π) を掛け、
+// exp で 2D 平面へ戻して B を参照する。
+//  - 半径方向の連続: B が ×f 自己相似だから(中心まで繋がる)
+//  - 角度方向の連続: exp が角度 2π 周期なので自動(上下の切れ目が出ない)
+//  - 分岐切断 Δw=(0,2π) は q を f^strands 倍する=B の対称なので連続
+// B は焼き込まず、座標をシェーダ内で基本領域へ畳んで毎回フル解像度を参照する。
 const ESCHER = /* glsl */ `
-uniform float u_strands;  // b
-uniform float u_winds;    // k
+uniform float u_zoomF;     // f = 1/size(窓から)
+uniform vec3  u_win;       // (cx, cy, size) — Droste と共有
+uniform float u_strands;   // ねじれ(整数で連続)
 void main(){
-  vec2 z = baseZ();
-  vec2 w = cLog(z);
-  float b = max(u_strands, 1.0);
-  float k = max(u_winds, 1.0);
-  float lnf = TAU * sqrt(b / k);
-  vec2 p = vec2(1.0, sqrt(b * k));
-  vec2 wsrc = cMul(p, w);
-  // 自己相似ベクトル (lnf, b·TAU) に沿ってズーム(周期 lnf でシームレス)
-  float t = u_offset / lnf;
-  wsrc -= t * vec2(lnf, b * TAU);
-  vec2 uv = vec2(wsrc.x / lnf, wsrc.y / TAU);   // fract なし → MIRRORED_REPEAT に任せる
-  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
+  float cx = u_win.x, cy = u_win.y, size = u_win.z;
+  vec2  winC  = vec2(cx, cy);
+  vec2  pstar = (winC - 0.5 * size) / (1.0 - size);
+  float lnf   = log(max(u_zoomF, 1.0001));
+
+  vec2 w  = cLog(vUv - pstar);                    // 出力の log-polar(蓄積点基準)
+  vec2 beta = vec2(1.0, -u_strands * lnf / TAU);  // ねじれ(分岐切断を閉じる)
+  vec2 wt = cMul(beta, w);
+  wt.x -= u_offset;                               // 自己相似ズーム(螺旋状, 周期 lnf)
+  vec2 q = pstar + cExp(wt);                      // 2D 平面へ
+
+  // 自己相似画像の基本領域 [0,1]²\窓 へ畳む(窓の中→展開 / 画像の外→収縮)
+  for (int i = 0; i < 96; i++) {
+    if (abs(q.x - cx) < 0.5 * size && abs(q.y - cy) < 0.5 * size) {
+      q = (q - winC) / size + 0.5;                // T^-1: 展開
+    } else if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) {
+      q = (q - 0.5) * size + winC;                // T: 収縮
+    } else {
+      break;
+    }
+  }
+  outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
 // --- べき乗 z^n ---
@@ -162,7 +173,7 @@ export const EFFECTS: Effect[] = [
     id: "droste",
     name: "Droste (再帰ズーム)",
     description:
-      "渦なし。画像を log-polar にタイル化し、f 倍に拡大しても同じ画像に戻る無限ズームにする。渦にしたくない画像向け。",
+      "渦なし。指定した窓に画像自身を再帰的に埋め込み、f 倍に拡大しても同じ画像に戻る無限ズームにする。渦にしたくない画像向け。",
     fragment: COMMON + DROSTE_PLAIN,
     // zoomF は窓の大きさ(範囲指定)から決まるので専用 UI で操作する
     params: [{ key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3, hidden: true }],
@@ -173,14 +184,14 @@ export const EFFECTS: Effect[] = [
     id: "escher",
     name: "Escher 渦",
     description:
-      "論文の中核。log-polar ツイストで Print Gallery 風の螺旋に。中心まで切れ目なく連続。2つの整数で格子が閉じ、拡大率 f=exp(2π√(本数/密度)) は自動で決まる。",
+      "論文の中核。Droste と同じ「ズームする範囲(窓)」で作った自己相似画像をねじって Print Gallery 風の螺旋に。中心まで切れ目なく連続し、シームレスにループする。",
     fragment: COMMON + ESCHER,
     params: [
-      { key: "strands", label: "螺旋の本数 b", min: 1, max: 6, step: 1, default: 1 },
-      { key: "winds", label: "巻きの密度 k (大きいほど密)", min: 1, max: 12, step: 1, default: 3 },
+      { key: "strands", label: "ねじれ(螺旋の本数)", min: 1, max: 6, step: 1, default: 1 },
+      // f は窓(範囲)から決まるので隠す。u_zoomF を設定するために params には残す
+      { key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true },
     ],
-    // MIRRORED_REPEAT なので 1 自己相似周期(lnf)では鏡映反転する。2 周期で恒等に戻り完全ループ
-    animPeriod: (p) => 2 * TAU * Math.sqrt((p.strands ?? 1) / Math.max(p.winds ?? 3, 1)),
+    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
   },
   {
