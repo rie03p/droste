@@ -56,9 +56,11 @@ export default function App() {
   const square = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
 
   const isDroste = effect.id === "droste";
-  // Droste は窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する
+  // Droste は窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
+  // ここの size はシェーダの窓サイズ(u_win.z)と完全一致させること。ずれると s が
+  // 窓サイズに到達せずループの継ぎ目に届かない(=途中で打ち切られる)。
   const renderParams = useMemo(
-    () => (isDroste ? { ...params, zoomF: 1 / Math.max(drosteRect.size, 0.05) } : params),
+    () => (isDroste ? { ...params, zoomF: 1 / drosteRect.size } : params),
     [isDroste, params, drosteRect.size]
   );
   // Droste はビュー比のレベル0画像(再帰はシェーダ側)、それ以外は正方形クロップをそのまま
