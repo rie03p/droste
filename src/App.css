@@ -106,11 +106,31 @@
 }
 .droste-preview {
   width: 100%;
-  aspect-ratio: 1 / 1;
   border-radius: 6px;
   background: #000;
   cursor: crosshair;
   touch-action: none;
+}
+.droste-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.droste-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #9a9ab0;
+}
+.droste-inputs input {
+  width: 100%;
+  padding: 5px 6px;
+  background: #20202c;
+  color: #eee;
+  border: 1px solid #34344a;
+  border-radius: 5px;
+  font-size: 12px;
 }
 
 .controls {

@@ -80,9 +80,55 @@ export function DrostePanel(props: Props) {
         onPointerMove={(e) => mode && apply(norm(e), mode)}
         onPointerUp={() => setMode(null)}
       />
+
+      <div className="droste-inputs">
+        <label>
+          横位置
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.01}
+            value={round(rect.cx)}
+            onChange={(e) => setField("cx", e.target.value)}
+          />
+        </label>
+        <label>
+          縦位置
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.01}
+            value={round(rect.cy)}
+            onChange={(e) => setField("cy", e.target.value)}
+          />
+        </label>
+        <label>
+          大きさ
+          <input
+            type="number"
+            min={0.02}
+            max={0.9}
+            step={0.01}
+            value={round(rect.size)}
+            onChange={(e) => setField("size", e.target.value)}
+          />
+        </label>
+      </div>
+      <p className="desc">1段あたりの拡大率 f = {(1 / rect.size).toFixed(1)}</p>
     </div>
   );
+
+  function setField(key: keyof DrosteRect, raw: string) {
+    const v = parseFloat(raw);
+    if (Number.isNaN(v)) return;
+    const next = { ...rect, [key]: key === "size" ? clamp(v, 0.02, 0.9) : clamp(v, 0, 1) };
+    props.onRect(clampRect(next));
+  }
 }
+
+const round = (v: number) => Math.round(v * 1000) / 1000;
 
 // 矩形をビュー内に収める
 function clampRect(r: DrosteRect): DrosteRect {
