@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { EFFECTS, type Effect } from "../effects";
 import { ASPECTS } from "../aspects";
 
@@ -34,6 +35,7 @@ type Props = {
 
 function Slider(p: {
   label: string;
+  hint?: string; // 操作している変数/単位
   min: number;
   max: number;
   step: number;
@@ -44,7 +46,10 @@ function Slider(p: {
     <label className="slider">
       <span className="slider-label">
         {p.label}
-        <em>{p.value.toFixed(p.step < 1 ? 2 : 0)}</em>
+        <span className="slider-meta">
+          {p.hint && <code className="var">{p.hint}</code>}
+          <em>{p.value.toFixed(p.step < 1 ? 2 : 0)}</em>
+        </span>
       </span>
       <input
         type="range"
@@ -56,6 +61,10 @@ function Slider(p: {
       />
     </label>
   );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <span className="section-title">{children}</span>;
 }
 
 export function Controls(props: Props) {
@@ -102,41 +111,58 @@ export function Controls(props: Props) {
 
       <hr />
 
-      <Slider label="ビューズーム (大きいほど寄る)" min={0.2} max={4} step={0.05} value={props.viewScale} onChange={props.onViewScale} />
-      <Slider label="基準回転" min={0} max={Math.PI * 2} step={0.01} value={props.rotate} onChange={props.onRotate} />
+      <SectionTitle>表示(静的な値)</SectionTitle>
+      <Slider
+        label="表示の拡大率"
+        hint="視野 / 大=寄る"
+        min={0.2}
+        max={4}
+        step={0.05}
+        value={props.viewScale}
+        onChange={props.onViewScale}
+      />
+      <Slider label="全体の向き" hint="θ₀ rad" min={0} max={Math.PI * 2} step={0.01} value={props.rotate} onChange={props.onRotate} />
 
       <hr />
 
+      <SectionTitle>アニメーション(時間で値を動かす)</SectionTitle>
+
       <label className="checkbox">
         <input type="checkbox" checked={props.animateZoom} onChange={(e) => props.onAnimateZoom(e.target.checked)} />
-        ズームアニメーション(同じ画像に戻る)
+        自己相似ズームを動かす
       </label>
+      <p className="desc">log半径方向に送る。拡大しても同じ画像に戻る。</p>
       <label className="slider">
-        <span className="slider-label">ズーム方向</span>
+        <span className="slider-label">
+          送る向き
+          <code className="var">offset 方向</code>
+        </span>
         <select className="full-select" value={props.zoomDir} onChange={(e) => props.onZoomDir(+e.target.value)}>
           <option value={-1}>拡大(中心に寄っていく)</option>
           <option value={1}>縮小(中心から引いていく)</option>
         </select>
       </label>
-      <Slider label="ズーム速度 (周期/秒)" min={0.02} max={1} step={0.01} value={props.zoomSpeed} onChange={props.onZoomSpeed} />
+      <Slider label="ズーム速度" hint="周期/秒" min={0.02} max={1} step={0.01} value={props.zoomSpeed} onChange={props.onZoomSpeed} />
 
       <label className="checkbox">
         <input type="checkbox" checked={props.animateRotate} onChange={(e) => props.onAnimateRotate(e.target.checked)} />
-        回転アニメーション
+        回転を動かす
       </label>
-      <Slider label="回転速度 (回転/秒)" min={0.02} max={1} step={0.01} value={props.rotateSpeed} onChange={props.onRotateSpeed} />
+      <p className="desc">向き θ を時間で送る。</p>
+      <Slider label="回転速度" hint="回転/秒" min={0.02} max={1} step={0.01} value={props.rotateSpeed} onChange={props.onRotateSpeed} />
 
       <hr />
 
+      <SectionTitle>中央の白い霧(Escher 風)</SectionTitle>
       <label className="checkbox">
         <input type="checkbox" checked={props.fogEnabled} onChange={(e) => props.onFogEnabled(e.target.checked)} />
-        中央の白い霧(Escher 風)
+        霧をかける
       </label>
       {props.fogEnabled && (
         <>
-          <Slider label="霧の半径" min={0} max={0.6} step={0.01} value={props.fogR} onChange={props.onFogR} />
-          <Slider label="霧のぼかし" min={0.01} max={0.5} step={0.01} value={props.fogSoft} onChange={props.onFogSoft} />
-          <Slider label="霧の強さ" min={0} max={1} step={0.01} value={props.fogStr} onChange={props.onFogStr} />
+          <Slider label="霧の半径" hint="r 視野比" min={0} max={0.6} step={0.01} value={props.fogR} onChange={props.onFogR} />
+          <Slider label="霧のぼかし幅" hint="soft" min={0.01} max={0.5} step={0.01} value={props.fogSoft} onChange={props.onFogSoft} />
+          <Slider label="霧の濃さ" hint="0..1" min={0} max={1} step={0.01} value={props.fogStr} onChange={props.onFogStr} />
         </>
       )}
     </div>
