@@ -133,13 +133,10 @@ export function Controls(props: Props) {
       </label>
       <p className="desc">log半径方向に送る。拡大しても同じ画像に戻る。</p>
       <label className="slider">
-        <span className="slider-label">
-          送る向き
-          <code className="var">offset 方向</code>
-        </span>
+        <span className="slider-label">ズームの向き</span>
         <select className="full-select" value={props.zoomDir} onChange={(e) => props.onZoomDir(+e.target.value)}>
-          <option value={-1}>拡大(中心に寄っていく)</option>
-          <option value={1}>縮小(中心から引いていく)</option>
+          <option value={1}>拡大</option>
+          <option value={-1}>縮小</option>
         </select>
       </label>
       <Slider label="ズーム速度" hint="周期/秒" min={0.02} max={1} step={0.01} value={props.zoomSpeed} onChange={props.onZoomSpeed} />

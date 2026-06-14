@@ -25,7 +25,7 @@ export default function App() {
   const [rotate, setRotate] = useState(0);
   const [animateZoom, setAnimateZoom] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(0.15);
-  const [zoomDir, setZoomDir] = useState(-1); // -1: 拡大(寄る) / +1: 縮小(引く)
+  const [zoomDir, setZoomDir] = useState(1); // +1: 拡大(寄る) / -1: 縮小(引く)
   const [animateRotate, setAnimateRotate] = useState(false);
   const [rotateSpeed, setRotateSpeed] = useState(0.1);
   const [fogEnabled, setFogEnabled] = useState(false);

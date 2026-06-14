@@ -106,7 +106,7 @@ void main(){
   float lnf = log(max(u_zoomF, 1.0001));
   vec2 p = vec2(1.0, u_strands * TAU / lnf);
   vec2 wsrc = cMul(p, w);
-  wsrc.x += u_offset;                  // ズーム(周期 lnf)
+  wsrc.x -= u_offset;                  // +offset で寄る(全エフェクトで向きを統一)。周期 lnf
   vec2 uv = vec2(fract(wsrc.x / lnf), fract(wsrc.y / TAU));
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
