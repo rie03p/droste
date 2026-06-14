@@ -16,8 +16,9 @@ type Props = {
   fogR: number;
   fogSoft: number;
   fogStr: number;
-  centerX: number;
-  centerY: number;
+  winX: number;
+  winY: number;
+  winSize: number;
   width: number; // 描画解像度(px)
   height: number;
   onReady?: (r: Renderer) => void;
@@ -79,8 +80,9 @@ export function ShaderCanvas(props: Props) {
           fogR: s.fogR,
           fogSoft: s.fogSoft,
           fogStr: s.fogStr,
-          centerX: s.centerX,
-          centerY: s.centerY,
+          winX: s.winX,
+          winY: s.winY,
+          winSize: s.winSize,
         });
       }
       raf = requestAnimationFrame(loop);

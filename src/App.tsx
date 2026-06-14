@@ -7,7 +7,7 @@ import { DrostePanel, type DrosteRect } from "./components/DrostePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
-import { accumulationPoint, composeSquare, makeSelfSimilar, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
+import { composeSquare, makeCover, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
@@ -61,18 +61,12 @@ export default function App() {
     () => (isDroste ? { ...params, zoomF: 1 / Math.max(drosteRect.size, 0.05) } : params),
     [isDroste, params, drosteRect.size]
   );
-  // Droste はビュー比の自己相似テクスチャ、それ以外は正方形クロップをそのまま
+  // Droste はビュー比のレベル0画像(再帰はシェーダ側)、それ以外は正方形クロップをそのまま
   const texture = useMemo(
-    () =>
-      isDroste
-        ? makeSelfSimilar(square, drosteRect.cx, drosteRect.cy, drosteRect.size, view.width, view.height)
-        : square,
-    [isDroste, square, drosteRect, view.width, view.height]
+    () => (isDroste ? makeCover(square, view.width, view.height) : square),
+    [isDroste, square, view.width, view.height]
   );
-  const center = useMemo(
-    () => (isDroste ? accumulationPoint(drosteRect.cx, drosteRect.cy, drosteRect.size) : { x: 0.5, y: 0.5 }),
-    [isDroste, drosteRect]
-  );
+  const win = isDroste ? drosteRect : { cx: 0.5, cy: 0.5, size: 1 / 3 };
 
   return (
     <div className="app">
@@ -134,8 +128,9 @@ export default function App() {
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
-          centerX={center.x}
-          centerY={center.y}
+          winX={win.cx}
+          winY={win.cy}
+          winSize={win.size}
         />
       </aside>
       <main className="stage">
@@ -153,8 +148,9 @@ export default function App() {
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
-          centerX={center.x}
-          centerY={center.y}
+          winX={win.cx}
+          winY={win.cy}
+          winSize={win.size}
           width={view.width}
           height={view.height}
           onReady={(r) => (rendererRef.current = r)}

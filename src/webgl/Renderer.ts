@@ -11,8 +11,9 @@ type RenderState = {
   fogR: number;
   fogSoft: number;
   fogStr: number;
-  centerX: number;
-  centerY: number;
+  winX: number;
+  winY: number;
+  winSize: number;
 };
 
 // フルスクリーン三角形に各エフェクトのフラグメントシェーダを適用する WebGL2 レンダラ。
@@ -101,7 +102,7 @@ export class Renderer {
     gl.uniform1f(this.uniform(prog, "u_fogR"), state.fogR);
     gl.uniform1f(this.uniform(prog, "u_fogSoft"), state.fogSoft);
     gl.uniform1f(this.uniform(prog, "u_fogStr"), state.fogStr);
-    gl.uniform2f(this.uniform(prog, "u_center"), state.centerX, state.centerY);
+    gl.uniform3f(this.uniform(prog, "u_win"), state.winX, state.winY, state.winSize);
 
     for (const p of state.effect.params) {
       const v = state.params[p.key] ?? p.default;

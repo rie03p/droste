@@ -86,14 +86,26 @@ vec3 applyFog(vec3 col){
 // 画像は蓄積点まわりの ×f で同一なので、ズーム係数 s が [1/f,1] を一周するとシームレスにループ。
 const DROSTE_PLAIN = /* glsl */ `
 uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
-uniform vec2  u_center;  // ズームの中心(蓄積点, uv空間 0..1)
+uniform vec3  u_win;     // ズーム窓 (cx, cy, size)  size = 1/f
 void main(){
-  // テクスチャはビューと同じ比率で焼いてあるので vUv をそのまま使う(端の繰り返しが出ない)
-  vec2 uv0 = vUv;
+  float cx = u_win.x, cy = u_win.y, size = u_win.z;
+  vec2 winC = vec2(cx, cy);
+  vec2 pstar = (winC - 0.5 * size) / (1.0 - size);  // 蓄積点
+
   float lnf = log(max(u_zoomF, 1.0001));
-  float s = exp(-mod(u_offset, lnf));        // (1/f, 1]
-  vec2 uv = u_center + (uv0 - u_center) * s; // 蓄積点へズームイン
-  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
+  float s = exp(-mod(u_offset, lnf));               // (1/f, 1]
+  vec2 q = pstar + (vUv - pstar) * s;               // 蓄積点へズームイン
+
+  // 窓に入った座標は展開(T^-1)して元画像から取り直す。
+  // 常にレベル0のフル解像度を参照するので、どのズーム段でも鮮明度が一定=継ぎ目が出ない。
+  for (int i = 0; i < 24; i++) {
+    if (abs(q.x - cx) < 0.5 * size && abs(q.y - cy) < 0.5 * size) {
+      q = (q - winC) / size + 0.5;
+    } else {
+      break;
+    }
+  }
+  outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
 // --- Escher 渦(ツイストあり) ---
