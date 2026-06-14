@@ -133,6 +133,41 @@
   font-size: 12px;
 }
 
+.strip-panel {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #2a2a38;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.strip-preview {
+  width: 100%;
+  border-radius: 6px;
+  background: #000;
+}
+.strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.strip-actions button,
+.strip-upload {
+  flex: 1;
+  min-width: 90px;
+  padding: 7px 8px;
+  background: #20202c;
+  color: #eee;
+  border: 1px solid #34344a;
+  border-radius: 5px;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+.strip-upload input {
+  display: none;
+}
+
 .controls {
   display: flex;
   flex-direction: column;

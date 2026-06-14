@@ -4,6 +4,8 @@ import type { Effect } from "../effects";
 
 type Props = {
   image: TexImageSource | null;
+  imageVersion?: number | string; // 同一参照のまま内容が変わったときの再アップロード検知
+  flipImageY?: boolean; // テクスチャ上下反転(帯は反転済みなので false)
   effect: Effect;
   params: Record<string, number>;
   viewScale: number;
@@ -47,12 +49,12 @@ export function ShaderCanvas(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 画像更新
+  // 画像更新(参照だけでなく版番号/反転の変化でも再アップロード)
   useEffect(() => {
     if (props.image && rendererRef.current) {
-      rendererRef.current.setImage(props.image);
+      rendererRef.current.setImage(props.image, props.flipImageY ?? true);
     }
-  }, [props.image]);
+  }, [props.image, props.imageVersion, props.flipImageY]);
 
   // 描画ループ
   useEffect(() => {
