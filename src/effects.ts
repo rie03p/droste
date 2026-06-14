@@ -11,6 +11,7 @@ export type ParamSpec = {
   max: number;
   step: number;
   default: number;
+  hidden?: boolean; // 専用 UI から操作するため通常のスライダーは出さない
 };
 
 export type Effect = {
@@ -87,8 +88,8 @@ const DROSTE_PLAIN = /* glsl */ `
 uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
 uniform vec2  u_center;  // ズームの中心(蓄積点, uv空間 0..1)
 void main(){
-  vec2 z = baseZ();
-  vec2 uv0 = 0.5 + z;
+  // テクスチャはビューと同じ比率で焼いてあるので vUv をそのまま使う(端の繰り返しが出ない)
+  vec2 uv0 = vUv;
   float lnf = log(max(u_zoomF, 1.0001));
   float s = exp(-mod(u_offset, lnf));        // (1/f, 1]
   vec2 uv = u_center + (uv0 - u_center) * s; // 蓄積点へズームイン
@@ -140,7 +141,8 @@ export const EFFECTS: Effect[] = [
     description:
       "渦なし。画像を log-polar にタイル化し、f 倍に拡大しても同じ画像に戻る無限ズームにする。渦にしたくない画像向け。",
     fragment: COMMON + DROSTE_PLAIN,
-    params: [{ key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3 }],
+    // zoomF は窓の大きさ(範囲指定)から決まるので専用 UI で操作する
+    params: [{ key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3, hidden: true }],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleFrames,
   },

@@ -3,11 +3,11 @@ import { ShaderCanvas } from "./components/ShaderCanvas";
 import { Controls } from "./components/Controls";
 import { ImageUploader } from "./components/ImageUploader";
 import { ImageEditor } from "./components/ImageEditor";
-import { DrostePanel } from "./components/DrostePanel";
+import { DrostePanel, type DrosteRect } from "./components/DrostePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
-import { composeSquare, makeSelfSimilar, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
+import { accumulationPoint, composeSquare, makeSelfSimilar, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
@@ -38,7 +38,7 @@ export default function App() {
   const [usingSample, setUsingSample] = useState(true);
 
   const [aspect, setAspect] = useState(1); // 幅/高さ
-  const [drosteTarget, setDrosteTarget] = useState({ x: 0.5, y: 0.5 }); // Droste のズーム蓄積点
+  const [drosteRect, setDrosteRect] = useState<DrosteRect>({ cx: 0.5, cy: 0.5, size: 1 / 3 }); // Droste のズーム窓
   const rendererRef = useRef<Renderer | null>(null);
   const effect = useMemo(() => getEffect(effectId), [effectId]);
 
@@ -56,21 +56,23 @@ export default function App() {
   const square = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
 
   const isDroste = effect.id === "droste";
-  const zoomF = params.zoomF ?? 3;
-  // Droste では指定した蓄積点へ画像自身を埋め込み、自己相似画像にする
-  const drosteWindow = useMemo(() => {
-    const size = 1 / Math.max(zoomF, 1.0001);
-    return {
-      size,
-      cx: drosteTarget.x * (1 - size) + 0.5 * size,
-      cy: drosteTarget.y * (1 - size) + 0.5 * size,
-    };
-  }, [zoomF, drosteTarget]);
-  const texture = useMemo(
-    () => (isDroste ? makeSelfSimilar(square, drosteWindow.cx, drosteWindow.cy, drosteWindow.size, 1024) : square),
-    [isDroste, square, drosteWindow]
+  // Droste は窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する
+  const renderParams = useMemo(
+    () => (isDroste ? { ...params, zoomF: 1 / Math.max(drosteRect.size, 0.05) } : params),
+    [isDroste, params, drosteRect.size]
   );
-  const center = isDroste ? drosteTarget : { x: 0.5, y: 0.5 };
+  // Droste はビュー比の自己相似テクスチャ、それ以外は正方形クロップをそのまま
+  const texture = useMemo(
+    () =>
+      isDroste
+        ? makeSelfSimilar(square, drosteRect.cx, drosteRect.cy, drosteRect.size, view.width, view.height)
+        : square,
+    [isDroste, square, drosteRect, view.width, view.height]
+  );
+  const center = useMemo(
+    () => (isDroste ? accumulationPoint(drosteRect.cx, drosteRect.cy, drosteRect.size) : { x: 0.5, y: 0.5 }),
+    [isDroste, drosteRect]
+  );
 
   return (
     <div className="app">
@@ -120,11 +122,11 @@ export default function App() {
           fogStr={fogStr}
           onFogStr={setFogStr}
         />
-        {isDroste && <DrostePanel texture={texture} target={drosteTarget} onTarget={setDrosteTarget} />}
+        {isDroste && <DrostePanel texture={texture} rect={drosteRect} onRect={setDrosteRect} />}
         <ExportPanel
           getRenderer={() => rendererRef.current}
           effect={effect}
-          params={params}
+          params={renderParams}
           viewScale={viewScale}
           rotate={rotate}
           zoomDir={zoomDir}
@@ -140,7 +142,7 @@ export default function App() {
         <ShaderCanvas
           image={texture}
           effect={effect}
-          params={params}
+          params={renderParams}
           viewScale={viewScale}
           rotate={rotate}
           animateZoom={animateZoom}

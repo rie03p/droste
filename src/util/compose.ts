@@ -28,34 +28,58 @@ export function composeSquare(src: CanvasImageSource, t: Transform, size: number
   return c;
 }
 
+// src を W×H に余白なく(cover)描く
+function drawCover(ctx: CanvasRenderingContext2D, src: CanvasImageSource, W: number, H: number) {
+  const iw = (src as HTMLCanvasElement).width;
+  const ih = (src as HTMLCanvasElement).height;
+  const scale = Math.max(W / iw, H / ih);
+  const w = iw * scale;
+  const h = ih * scale;
+  ctx.drawImage(src, (W - w) / 2, (H - h) / 2, w, h);
+}
+
 // 通常画像を「ズームすると同じ画像に戻る」自己相似画像へ変換する。
-// 窓(中心 cx,cy・大きさ size=1/f)に画像自身を縮小して再帰的に埋め込む。
-// 結果は蓄積点 p* = (c - 0.5·size)/(1 - size) まわりの ×f スケールに対して不変。
+// ビューと同じ W×H で焼き、窓(中心 cx,cy・ビュー比に対する大きさ size=1/f)に
+// 画像自身を再帰的に埋め込む。蓄積点 p* = ((c-0.5·size)/(1-size)) まわりの ×f に不変。
 export function makeSelfSimilar(
   src: CanvasImageSource,
   cx: number,
   cy: number,
   size: number,
-  S = 1024
+  W: number,
+  H: number
 ): HTMLCanvasElement {
+  const base = document.createElement("canvas");
+  base.width = W;
+  base.height = H;
+  drawCover(base.getContext("2d")!, src, W, H); // ビュー全体の画像(レベル0)
+
   const c = document.createElement("canvas");
-  c.width = c.height = S;
+  c.width = W;
+  c.height = H;
   const ctx = c.getContext("2d")!;
-  ctx.drawImage(src, 0, 0, S, S); // レベル0(元画像全体)
+  ctx.drawImage(base, 0, 0);
 
   const r = Math.min(Math.max(size, 0.05), 0.95);
-  const levels = Math.min(16, Math.ceil(Math.log(S) / Math.log(1 / r)) + 1);
-  // 窓への写像 T(p) = (p - 0.5)·r + (cx,cy) を繰り返し適用して縮小コピーを重ねる
-  let kx = 0.5;
-  let ky = 0.5;
+  const levels = Math.min(24, Math.ceil(Math.log(Math.max(W, H)) / Math.log(1 / r)) + 1);
+  // 窓への写像 T(u) = (u - 0.5)·r + (cx,cy) を繰り返し、縮小コピーを重ねる
+  let u = 0.5;
+  let v = 0.5;
   let scale = 1;
   for (let k = 1; k <= levels; k++) {
-    kx = (kx - 0.5) * r + cx;
-    ky = (ky - 0.5) * r + cy;
+    u = (u - 0.5) * r + cx;
+    v = (v - 0.5) * r + cy;
     scale *= r;
-    const w = scale * S;
-    if (w < 1) break;
-    ctx.drawImage(src, kx * S - w / 2, ky * S - w / 2, w, w);
+    const w = scale * W;
+    const h = scale * H;
+    if (w < 1 || h < 1) break;
+    ctx.drawImage(base, u * W - w / 2, v * H - h / 2, w, h);
   }
   return c;
+}
+
+// 窓(中心 cx,cy・大きさ size)からズームの蓄積点 p* を求める。
+export function accumulationPoint(cx: number, cy: number, size: number): { x: number; y: number } {
+  const d = 1 - size;
+  return { x: (cx - 0.5 * size) / d, y: (cy - 0.5 * size) / d };
 }

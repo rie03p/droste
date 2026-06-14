@@ -97,7 +97,7 @@ export function Controls(props: Props) {
         </select>
       </div>
 
-      {props.effect.params.map((p) => (
+      {props.effect.params.filter((p) => !p.hidden).map((p) => (
         <Slider
           key={p.key}
           label={p.label}
