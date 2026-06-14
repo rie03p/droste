@@ -22,8 +22,13 @@ export default function App() {
   const [rotate, setRotate] = useState(0);
   const [animateZoom, setAnimateZoom] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(0.15);
+  const [zoomDir, setZoomDir] = useState(-1); // -1: 拡大(寄る) / +1: 縮小(引く)
   const [animateRotate, setAnimateRotate] = useState(false);
   const [rotateSpeed, setRotateSpeed] = useState(0.1);
+  const [fogEnabled, setFogEnabled] = useState(false);
+  const [fogR, setFogR] = useState(0.16);
+  const [fogSoft, setFogSoft] = useState(0.14);
+  const [fogStr, setFogStr] = useState(0.9);
   const [image, setImage] = useState<TexImageSource>(() => makeDefaultImage());
 
   const rendererRef = useRef<Renderer | null>(null);
@@ -48,10 +53,20 @@ export default function App() {
           onAnimateZoom={setAnimateZoom}
           zoomSpeed={zoomSpeed}
           onZoomSpeed={setZoomSpeed}
+          zoomDir={zoomDir}
+          onZoomDir={setZoomDir}
           animateRotate={animateRotate}
           onAnimateRotate={setAnimateRotate}
           rotateSpeed={rotateSpeed}
           onRotateSpeed={setRotateSpeed}
+          fogEnabled={fogEnabled}
+          onFogEnabled={setFogEnabled}
+          fogR={fogR}
+          onFogR={setFogR}
+          fogSoft={fogSoft}
+          onFogSoft={setFogSoft}
+          fogStr={fogStr}
+          onFogStr={setFogStr}
         />
         <ExportPanel
           getRenderer={() => rendererRef.current}
@@ -59,6 +74,10 @@ export default function App() {
           params={params}
           viewScale={viewScale}
           rotate={rotate}
+          zoomDir={zoomDir}
+          fogR={fogR}
+          fogSoft={fogSoft}
+          fogStr={fogEnabled ? fogStr : 0}
         />
       </aside>
       <main className="stage">
@@ -70,8 +89,12 @@ export default function App() {
           rotate={rotate}
           animateZoom={animateZoom}
           zoomSpeed={zoomSpeed}
+          zoomDir={zoomDir}
           animateRotate={animateRotate}
           rotateSpeed={rotateSpeed}
+          fogR={fogR}
+          fogSoft={fogSoft}
+          fogStr={fogEnabled ? fogStr : 0}
           resolution={720}
           onReady={(r) => (rendererRef.current = r)}
         />

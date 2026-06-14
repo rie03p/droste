@@ -11,6 +11,10 @@ export type ExportOptions = {
   rotate: number; // 基準回転
   mode: ExportMode;
   rotateTurns: number; // "both"/"rotate" でループ中に回す周回数(整数=シームレス)
+  zoomDir: number; // +1: 縮小 / -1: 拡大
+  fogR: number;
+  fogSoft: number;
+  fogStr: number;
   size: number; // 出力 GIF の一辺(px)
   frames: number; // フレーム数(1ループ)
   fps: number;
@@ -25,7 +29,8 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // - rotate: 回転を 0→turns*TAU で回す
 // - both : 上の両方を同時に
 export async function exportGif(renderer: Renderer, opts: ExportOptions): Promise<Blob> {
-  const { effect, params, viewScale, rotate, mode, rotateTurns, size, frames, fps } = opts;
+  const { effect, params, viewScale, rotate, mode, rotateTurns, zoomDir, fogR, fogSoft, fogStr, size, frames, fps } =
+    opts;
 
   const out = document.createElement("canvas");
   out.width = out.height = size;
@@ -37,11 +42,13 @@ export async function exportGif(renderer: Renderer, opts: ExportOptions): Promis
 
   for (let i = 0; i < frames; i++) {
     const t = i / frames; // 0..1(端でつながる)
-    const offset = mode === "rotate" ? 0 : period * t;
+    // zoomDir<0(拡大)のときは offset を減少方向に。どちら向きでもループはシームレス。
+    const zt = zoomDir < 0 ? 1 - t : t;
+    const offset = mode === "rotate" ? 0 : period * zt;
     const turns = mode === "zoom" ? 0 : rotateTurns;
     const frameRotate = rotate + turns * TAU * t;
 
-    renderer.render({ effect, params, viewScale, rotate: frameRotate, offset });
+    renderer.render({ effect, params, viewScale, rotate: frameRotate, offset, fogR, fogSoft, fogStr });
     ctx.drawImage(renderer.canvas, 0, 0, size, size);
     const { data } = ctx.getImageData(0, 0, size, size);
 

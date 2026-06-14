@@ -8,6 +8,9 @@ type RenderState = {
   viewScale: number;
   rotate: number;
   offset: number;
+  fogR: number;
+  fogSoft: number;
+  fogStr: number;
 };
 
 // フルスクリーン三角形に各エフェクトのフラグメントシェーダを適用する WebGL2 レンダラ。
@@ -93,6 +96,9 @@ export class Renderer {
     gl.uniform1f(this.uniform(prog, "u_viewScale"), state.viewScale);
     gl.uniform1f(this.uniform(prog, "u_rotate"), state.rotate);
     gl.uniform1f(this.uniform(prog, "u_offset"), state.offset);
+    gl.uniform1f(this.uniform(prog, "u_fogR"), state.fogR);
+    gl.uniform1f(this.uniform(prog, "u_fogSoft"), state.fogSoft);
+    gl.uniform1f(this.uniform(prog, "u_fogStr"), state.fogStr);
 
     for (const p of state.effect.params) {
       const v = state.params[p.key] ?? p.default;

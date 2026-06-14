@@ -9,6 +9,10 @@ type Props = {
   params: Record<string, number>;
   viewScale: number;
   rotate: number;
+  zoomDir: number;
+  fogR: number;
+  fogSoft: number;
+  fogStr: number;
 };
 
 const MODES: { value: ExportMode; label: string }[] = [
@@ -42,6 +46,10 @@ export function ExportPanel(props: Props) {
         rotate: props.rotate,
         mode,
         rotateTurns,
+        zoomDir: props.zoomDir,
+        fogR: props.fogR,
+        fogSoft: props.fogSoft,
+        fogStr: props.fogStr,
         size,
         frames,
         fps,

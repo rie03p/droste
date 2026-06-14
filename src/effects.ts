@@ -58,10 +58,22 @@ vec2 baseZ(){
   f.x *= u_resolution.x / u_resolution.y;
   float c = cos(u_rotate), s = sin(u_rotate);
   f = mat2(c, -s, s, c) * f;
-  return f * u_viewScale;
+  return f / u_viewScale;   // 大きいほど寄る(拡大)
 }
 
 vec4 sampleImg(vec2 uv){ return texture(u_img, uv); }
+
+// 中央の白い霧(Escher の Print Gallery 中心のような曇り)
+uniform float u_fogR;     // 半径(短辺基準, 0..)
+uniform float u_fogSoft;  // ぼかし幅
+uniform float u_fogStr;   // 強さ 0..1
+vec3 applyFog(vec3 col){
+  vec2 f = vUv - 0.5;
+  f.x *= u_resolution.x / u_resolution.y;
+  float d = length(f);
+  float m = (1.0 - smoothstep(u_fogR, u_fogR + max(u_fogSoft, 1e-4), d)) * u_fogStr;
+  return mix(col, vec3(1.0), clamp(m, 0.0, 1.0));
+}
 `;
 
 // --- Droste / Escher 渦 ---
@@ -78,7 +90,7 @@ void main(){
   vec2 wsrc = cMul(p, w);
   wsrc.x += u_offset;                  // ズームアニメーション(周期 lnf)
   vec2 uv = vec2(fract(wsrc.x / lnf), fract(wsrc.y / TAU));
-  outColor = sampleImg(uv);
+  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
 // --- べき乗 z^n ---
@@ -89,7 +101,7 @@ void main(){
   vec2 zs = cPowR(z, u_power);
   zs = cMul(zs, cExp(vec2(0.0, u_offset)));   // 回転アニメーション(周期 TAU)
   vec2 uv = fract(0.5 + 0.5 * zs);
-  outColor = sampleImg(uv);
+  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
 // --- 複素 exp ---
@@ -100,7 +112,7 @@ void main(){
   vec2 zs = cExp(z * u_scale);
   zs = cMul(zs, cExp(vec2(0.0, u_offset)));   // 回転アニメーション(周期 TAU)
   vec2 uv = fract(0.5 + 0.5 * zs);
-  outColor = sampleImg(uv);
+  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
 export const EFFECTS: Effect[] = [

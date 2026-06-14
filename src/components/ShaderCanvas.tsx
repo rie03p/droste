@@ -10,11 +10,18 @@ type Props = {
   rotate: number; // 手動の基準回転
   animateZoom: boolean;
   zoomSpeed: number; // 周期/秒
+  zoomDir: number; // +1: 縮小(引く) / -1: 拡大(寄る)
   animateRotate: boolean;
   rotateSpeed: number; // 回転/秒
+  fogR: number;
+  fogSoft: number;
+  fogStr: number;
   resolution: number; // 描画解像度(px、正方形)
   onReady?: (r: Renderer) => void;
 };
+
+// 負数も [0, m) に収める剰余
+const wrap = (x: number, m: number) => ((x % m) + m) % m;
 
 const TAU = Math.PI * 2;
 
@@ -55,10 +62,10 @@ export function ShaderCanvas(props: Props) {
       if (r) {
         const period = s.effect.animPeriod(s.params);
         if (s.animateZoom) {
-          zoomPhaseRef.current = (zoomPhaseRef.current + dt * s.zoomSpeed * period) % period;
+          zoomPhaseRef.current = wrap(zoomPhaseRef.current + dt * s.zoomSpeed * s.zoomDir * period, period);
         }
         if (s.animateRotate) {
-          rotPhaseRef.current = (rotPhaseRef.current + dt * s.rotateSpeed * TAU) % TAU;
+          rotPhaseRef.current = wrap(rotPhaseRef.current + dt * s.rotateSpeed * TAU, TAU);
         }
         r.render({
           effect: s.effect,
@@ -66,6 +73,9 @@ export function ShaderCanvas(props: Props) {
           viewScale: s.viewScale,
           rotate: s.rotate + rotPhaseRef.current,
           offset: zoomPhaseRef.current,
+          fogR: s.fogR,
+          fogSoft: s.fogSoft,
+          fogStr: s.fogStr,
         });
       }
       raf = requestAnimationFrame(loop);
