@@ -48,7 +48,7 @@ export function DrostePanel(props: Props) {
   const apply = (n: { x: number; y: number }, m: "move" | "resize") => {
     if (m === "resize") {
       const half = Math.max(Math.abs(n.x - rect.cx), Math.abs(n.y - rect.cy));
-      const size = clamp(2 * half, 0.08, 0.9);
+      const size = clamp(2 * half, 0.02, 0.9);
       props.onRect(clampRect({ ...rect, size }));
     } else {
       props.onRect(clampRect({ ...rect, cx: n.x, cy: n.y }));
