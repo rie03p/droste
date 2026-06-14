@@ -16,6 +16,9 @@ import "./App.css";
 // log 帯テクスチャの解像度(横=対数半径, 縦=角度)
 const STRIP_W = 1280;
 const STRIP_H = 640;
+// 帯モードは自己相似の窓を使わない。中心=画像中心・f 固定で焼き、巻き戻しは z 送り+exp のみ。
+const STRIP_WIN = { cx: 0.5, cy: 0.5, size: 1 / 3 };
+const STRIP_F = 1 / STRIP_WIN.size;
 
 // 全エフェクトのパラメータ初期値をまとめて保持する
 function buildInitialParams(): Record<string, number> {
@@ -69,29 +72,32 @@ export default function App() {
 
   // Droste / Escher / 対数 は同じ自己相似画像(窓に画像自身を埋め込み)を使う
   const isSelfSimilar = effect.id === "droste" || effect.id === "escher" || effect.id === "log";
-  // ドロステ化(expwrap)も窓(p*,f)が要る。帯ソースを使う。
-  const needsWindow = isSelfSimilar || effect.id === "expwrap";
   const useStrip = sourceMode === "strip" || effect.id === "expwrap";
+  // 自己相似系(元画像ソース)だけ窓(drosteRect)で f を決める。帯モードは f 固定。
+  const usesDrosteWindow = isSelfSimilar && !useStrip;
+  const needsWindow = usesDrosteWindow || effect.id === "expwrap";
+  const win = usesDrosteWindow ? drosteRect : STRIP_WIN;
+  const zoomF = usesDrosteWindow ? 1 / drosteRect.size : STRIP_F;
   // 窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
   // size はシェーダの窓サイズ(u_win.z)と完全一致させること(ずれるとループが崩れる)。
   const renderParams = useMemo(
-    () => (needsWindow ? { ...params, zoomF: 1 / drosteRect.size } : params),
-    [needsWindow, params, drosteRect.size]
+    () => (needsWindow ? { ...params, zoomF } : params),
+    [needsWindow, params, zoomF]
   );
   // 自己相似系のレベル0画像(ビュー比)。帯ベイクの入力にもこれを使う。
   const cover = useMemo(() => makeCover(square, view.width, view.height), [square, view.width, view.height]);
 
-  // log 帯(中間画像)を焼く。窓(p*,f)に紐づくので drosteRect が効く。
+  // log 帯(中間画像)を焼く。帯モードは窓を使わず中心=画像中心・f 固定で焼く。
   const bakedStrip = useMemo(() => {
     if (!useStrip) return null;
     const baker = (bakerRef.current ??= new LogStripBaker());
     return baker.bake(
       cover,
-      { zoomF: 1 / drosteRect.size, winX: drosteRect.cx, winY: 1 - drosteRect.cy, winSize: drosteRect.size },
+      { zoomF: STRIP_F, winX: STRIP_WIN.cx, winY: 1 - STRIP_WIN.cy, winSize: STRIP_WIN.size },
       STRIP_W,
       STRIP_H
     );
-  }, [useStrip, cover, drosteRect.cx, drosteRect.cy, drosteRect.size]);
+  }, [useStrip, cover]);
   const stripSource = replacedStrip ?? bakedStrip;
 
   // テクスチャ: 帯モード=帯 / 自己相似=ビュー比レベル0 / それ以外=正方形クロップ
@@ -100,9 +106,8 @@ export default function App() {
   const flipImageY = !useStrip;
   // 同一 canvas を再ベイクしても参照が変わらないので、内容変化を検知させるための版番号
   const imageVersion = useStrip
-    ? `strip:${replacedStrip ? "edited" : "baked"}:${drosteRect.cx}:${drosteRect.cy}:${drosteRect.size}:${square.width}`
+    ? `strip:${replacedStrip ? "edited" : "baked"}:${square.width}`
     : `src:${isSelfSimilar ? "cover" : "square"}:${square.width}:${view.width}`;
-  const win = isSelfSimilar || useStrip ? drosteRect : { cx: 0.5, cy: 0.5, size: 1 / 3 };
 
   return (
     <div className="app">
@@ -168,7 +173,7 @@ export default function App() {
           fogStr={fogStr}
           onFogStr={setFogStr}
         />
-        {(isSelfSimilar || useStrip) && <DrostePanel texture={cover} rect={drosteRect} onRect={setDrosteRect} />}
+        {usesDrosteWindow && <DrostePanel texture={cover} rect={drosteRect} onRect={setDrosteRect} />}
         {useStrip && stripSource && (
           <StripPanel
             strip={bakedStrip ?? cover}
