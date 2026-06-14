@@ -110,18 +110,28 @@ void main(){
 }`;
 
 // --- Escher 渦(ツイストあり) ---
-// z_src = z^p,  p = 1 + i * strands * TAU / ln(f)。strands 整数で ×f に厳密自己相似のまま螺旋になる。
+// 自己相似(スケール f)と分岐切断(角度の 2π 巻き戻り)を両立させるため、整数 b(螺旋の本数)と
+// k(巻きの密度)で格子 L=<(lnf,0),(0,2π)> を閉じる。両条件から
+//   lnf = 2π·√(b/k)   (= f = exp(2π√(b/k)) は自動で決まる)
+//   ねじれ p = (1, √(b·k))
+// 分岐切断 Δw=(0,2π) は Δuv=(-k,1)、スケール Δw=(lnf,0) は Δuv=(1,b) と
+// どちらも整数格子に乗るため、fract せず MIRRORED_REPEAT で標本化すれば
+// 画像の縁でも反射で連続=中心まで切れ目が出ない。
 const ESCHER = /* glsl */ `
-uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
-uniform float u_strands; // 螺旋の本数(整数で自己相似)
+uniform float u_strands;  // b
+uniform float u_winds;    // k
 void main(){
   vec2 z = baseZ();
   vec2 w = cLog(z);
-  float lnf = log(max(u_zoomF, 1.0001));
-  vec2 p = vec2(1.0, u_strands * TAU / lnf);
+  float b = max(u_strands, 1.0);
+  float k = max(u_winds, 1.0);
+  float lnf = TAU * sqrt(b / k);
+  vec2 p = vec2(1.0, sqrt(b * k));
   vec2 wsrc = cMul(p, w);
-  wsrc.x -= u_offset;                  // +offset で寄る(全エフェクトで向きを統一)。周期 lnf
-  vec2 uv = vec2(fract(wsrc.x / lnf), fract(wsrc.y / TAU));
+  // 自己相似ベクトル (lnf, b·TAU) に沿ってズーム(周期 lnf でシームレス)
+  float t = u_offset / lnf;
+  wsrc -= t * vec2(lnf, b * TAU);
+  vec2 uv = vec2(wsrc.x / lnf, wsrc.y / TAU);   // fract なし → MIRRORED_REPEAT に任せる
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
@@ -163,13 +173,14 @@ export const EFFECTS: Effect[] = [
     id: "escher",
     name: "Escher 渦",
     description:
-      "論文の中核。log-polar ツイストで Print Gallery 風の螺旋に。螺旋の本数を整数にすると f 倍ズームで同じ画像に戻る。",
+      "論文の中核。log-polar ツイストで Print Gallery 風の螺旋に。中心まで切れ目なく連続。2つの整数で格子が閉じ、拡大率 f=exp(2π√(本数/密度)) は自動で決まる。",
     fragment: COMMON + ESCHER,
     params: [
-      { key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3 },
-      { key: "strands", label: "螺旋の本数 (整数で自己相似)", min: 1, max: 6, step: 1, default: 1 },
+      { key: "strands", label: "螺旋の本数 b", min: 1, max: 6, step: 1, default: 1 },
+      { key: "winds", label: "巻きの密度 k (大きいほど密)", min: 1, max: 12, step: 1, default: 3 },
     ],
-    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
+    // MIRRORED_REPEAT なので 1 自己相似周期(lnf)では鏡映反転する。2 周期で恒等に戻り完全ループ
+    animPeriod: (p) => 2 * TAU * Math.sqrt((p.strands ?? 1) / Math.max(p.winds ?? 3, 1)),
     sample: sampleCheckerboard,
   },
   {
