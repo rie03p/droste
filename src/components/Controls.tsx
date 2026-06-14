@@ -1,8 +1,11 @@
 import { EFFECTS, type Effect } from "../effects";
+import { ASPECTS } from "../aspects";
 
 type Props = {
   effect: Effect;
   onEffectChange: (id: string) => void;
+  aspect: number;
+  onAspect: (v: number) => void;
   params: Record<string, number>;
   onParamChange: (key: string, value: number) => void;
   viewScale: number;
@@ -68,6 +71,21 @@ export function Controls(props: Props) {
           ))}
         </select>
         <p className="desc">{props.effect.description}</p>
+      </div>
+
+      <div className="field">
+        <span className="field-label">出力比率</span>
+        <select
+          className="full-select"
+          value={props.aspect}
+          onChange={(e) => props.onAspect(parseFloat(e.target.value))}
+        >
+          {ASPECTS.map((a) => (
+            <option key={a.label} value={a.ratio}>
+              {a.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {props.effect.params.map((p) => (

@@ -4,6 +4,7 @@ import { Controls } from "./components/Controls";
 import { ImageUploader } from "./components/ImageUploader";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
+import { dimsFromLongEdge } from "./aspects";
 import { makeDefaultImage } from "./util/defaultImage";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
@@ -31,8 +32,10 @@ export default function App() {
   const [fogStr, setFogStr] = useState(0.9);
   const [image, setImage] = useState<TexImageSource>(() => makeDefaultImage());
 
+  const [aspect, setAspect] = useState(1); // 幅/高さ
   const rendererRef = useRef<Renderer | null>(null);
   const effect = useMemo(() => getEffect(effectId), [effectId]);
+  const view = useMemo(() => dimsFromLongEdge(720, aspect), [aspect]);
 
   return (
     <div className="app">
@@ -43,6 +46,8 @@ export default function App() {
         <Controls
           effect={effect}
           onEffectChange={setEffectId}
+          aspect={aspect}
+          onAspect={setAspect}
           params={params}
           onParamChange={(k, v) => setParams((prev) => ({ ...prev, [k]: v }))}
           viewScale={viewScale}
@@ -75,6 +80,7 @@ export default function App() {
           viewScale={viewScale}
           rotate={rotate}
           zoomDir={zoomDir}
+          aspect={aspect}
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
@@ -95,7 +101,8 @@ export default function App() {
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
-          resolution={720}
+          width={view.width}
+          height={view.height}
           onReady={(r) => (rendererRef.current = r)}
         />
       </main>

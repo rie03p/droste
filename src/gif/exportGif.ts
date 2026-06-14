@@ -15,7 +15,8 @@ export type ExportOptions = {
   fogR: number;
   fogSoft: number;
   fogStr: number;
-  size: number; // 出力 GIF の一辺(px)
+  width: number; // 出力 GIF の幅(px)
+  height: number; // 出力 GIF の高さ(px)
   frames: number; // フレーム数(1ループ)
   fps: number;
   onProgress?: (ratio: number) => void;
@@ -29,11 +30,12 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // - rotate: 回転を 0→turns*TAU で回す
 // - both : 上の両方を同時に
 export async function exportGif(renderer: Renderer, opts: ExportOptions): Promise<Blob> {
-  const { effect, params, viewScale, rotate, mode, rotateTurns, zoomDir, fogR, fogSoft, fogStr, size, frames, fps } =
+  const { effect, params, viewScale, rotate, mode, rotateTurns, zoomDir, fogR, fogSoft, fogStr, width, height, frames, fps } =
     opts;
 
   const out = document.createElement("canvas");
-  out.width = out.height = size;
+  out.width = width;
+  out.height = height;
   const ctx = out.getContext("2d", { willReadFrequently: true })!;
 
   const period = effect.animPeriod(params);
@@ -49,12 +51,12 @@ export async function exportGif(renderer: Renderer, opts: ExportOptions): Promis
     const frameRotate = rotate + turns * TAU * t;
 
     renderer.render({ effect, params, viewScale, rotate: frameRotate, offset, fogR, fogSoft, fogStr });
-    ctx.drawImage(renderer.canvas, 0, 0, size, size);
-    const { data } = ctx.getImageData(0, 0, size, size);
+    ctx.drawImage(renderer.canvas, 0, 0, width, height);
+    const { data } = ctx.getImageData(0, 0, width, height);
 
     const palette = quantize(data, 256);
     const index = applyPalette(data, palette);
-    gif.writeFrame(index, size, size, { palette, delay });
+    gif.writeFrame(index, width, height, { palette, delay });
 
     opts.onProgress?.((i + 1) / frames);
     await nextFrame(); // UI を固めないよう毎フレーム譲る

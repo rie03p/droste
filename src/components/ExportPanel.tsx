@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { exportGif, downloadCanvasPng, type ExportMode } from "../gif/exportGif";
+import { dimsFromLongEdge } from "../aspects";
 import type { Renderer } from "../webgl/Renderer";
 import type { Effect } from "../effects";
 
@@ -10,6 +11,7 @@ type Props = {
   viewScale: number;
   rotate: number;
   zoomDir: number;
+  aspect: number;
   fogR: number;
   fogSoft: number;
   fogStr: number;
@@ -39,6 +41,7 @@ export function ExportPanel(props: Props) {
     if (!r || progress !== null) return;
     setProgress(0);
     try {
+      const { width, height } = dimsFromLongEdge(size, props.aspect);
       const blob = await exportGif(r, {
         effect: props.effect,
         params: props.params,
@@ -50,7 +53,8 @@ export function ExportPanel(props: Props) {
         fogR: props.fogR,
         fogSoft: props.fogSoft,
         fogStr: props.fogStr,
-        size,
+        width,
+        height,
         frames,
         fps,
         onProgress: setProgress,
@@ -89,7 +93,7 @@ export function ExportPanel(props: Props) {
 
       <div className="export-grid">
         <label>
-          サイズ
+          長辺(px)
           <select value={size} onChange={(e) => setSize(+e.target.value)}>
             {[240, 360, 480, 600, 720].map((s) => (
               <option key={s} value={s}>{s}px</option>

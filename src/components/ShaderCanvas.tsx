@@ -16,7 +16,8 @@ type Props = {
   fogR: number;
   fogSoft: number;
   fogStr: number;
-  resolution: number; // 描画解像度(px、正方形)
+  width: number; // 描画解像度(px)
+  height: number;
   onReady?: (r: Renderer) => void;
 };
 
@@ -87,9 +88,10 @@ export function ShaderCanvas(props: Props) {
   return (
     <canvas
       ref={canvasRef}
-      width={props.resolution}
-      height={props.resolution}
+      width={props.width}
+      height={props.height}
       className="shader-canvas"
+      style={{ aspectRatio: `${props.width} / ${props.height}` }}
     />
   );
 }
