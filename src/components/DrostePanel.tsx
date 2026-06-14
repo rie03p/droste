@@ -48,7 +48,7 @@ export function DrostePanel(props: Props) {
   const apply = (n: { x: number; y: number }, m: "move" | "resize") => {
     if (m === "resize") {
       const half = Math.max(Math.abs(n.x - rect.cx), Math.abs(n.y - rect.cy));
-      const size = clamp(2 * half, 0.02, 0.9);
+      const size = clamp(2 * half, 0.002, 0.9);
       props.onRect(clampRect({ ...rect, size }));
     } else {
       props.onRect(clampRect({ ...rect, cx: n.x, cy: n.y }));
@@ -108,9 +108,9 @@ export function DrostePanel(props: Props) {
           大きさ
           <input
             type="number"
-            min={0.02}
+            min={0.002}
             max={0.9}
-            step={0.01}
+            step={0.001}
             value={round(rect.size)}
             onChange={(e) => setField("size", e.target.value)}
           />
@@ -123,7 +123,7 @@ export function DrostePanel(props: Props) {
   function setField(key: keyof DrosteRect, raw: string) {
     const v = parseFloat(raw);
     if (Number.isNaN(v)) return;
-    const next = { ...rect, [key]: key === "size" ? clamp(v, 0.02, 0.9) : clamp(v, 0, 1) };
+    const next = { ...rect, [key]: key === "size" ? clamp(v, 0.002, 0.9) : clamp(v, 0, 1) };
     props.onRect(clampRect(next));
   }
 }
