@@ -3,10 +3,11 @@ import { ShaderCanvas } from "./components/ShaderCanvas";
 import { Controls } from "./components/Controls";
 import { ImageUploader } from "./components/ImageUploader";
 import { ImageEditor } from "./components/ImageEditor";
+import { DrostePanel } from "./components/DrostePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
-import { composeSquare, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
+import { composeSquare, makeSelfSimilar, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
@@ -37,6 +38,7 @@ export default function App() {
   const [usingSample, setUsingSample] = useState(true);
 
   const [aspect, setAspect] = useState(1); // 幅/高さ
+  const [drosteTarget, setDrosteTarget] = useState({ x: 0.5, y: 0.5 }); // Droste のズーム蓄積点
   const rendererRef = useRef<Renderer | null>(null);
   const effect = useMemo(() => getEffect(effectId), [effectId]);
 
@@ -49,8 +51,26 @@ export default function App() {
     }
   };
   const view = useMemo(() => dimsFromLongEdge(720, aspect), [aspect]);
-  // トリミング結果を正方形テクスチャに焼き込む
-  const image = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
+
+  // トリミング結果を正方形に焼き込む
+  const square = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
+
+  const isDroste = effect.id === "droste";
+  const zoomF = params.zoomF ?? 3;
+  // Droste では指定した蓄積点へ画像自身を埋め込み、自己相似画像にする
+  const drosteWindow = useMemo(() => {
+    const size = 1 / Math.max(zoomF, 1.0001);
+    return {
+      size,
+      cx: drosteTarget.x * (1 - size) + 0.5 * size,
+      cy: drosteTarget.y * (1 - size) + 0.5 * size,
+    };
+  }, [zoomF, drosteTarget]);
+  const texture = useMemo(
+    () => (isDroste ? makeSelfSimilar(square, drosteWindow.cx, drosteWindow.cy, drosteWindow.size, 1024) : square),
+    [isDroste, square, drosteWindow]
+  );
+  const center = isDroste ? drosteTarget : { x: 0.5, y: 0.5 };
 
   return (
     <div className="app">
@@ -100,6 +120,7 @@ export default function App() {
           fogStr={fogStr}
           onFogStr={setFogStr}
         />
+        {isDroste && <DrostePanel texture={texture} target={drosteTarget} onTarget={setDrosteTarget} />}
         <ExportPanel
           getRenderer={() => rendererRef.current}
           effect={effect}
@@ -111,11 +132,13 @@ export default function App() {
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
+          centerX={center.x}
+          centerY={center.y}
         />
       </aside>
       <main className="stage">
         <ShaderCanvas
-          image={image}
+          image={texture}
           effect={effect}
           params={params}
           viewScale={viewScale}
@@ -128,6 +151,8 @@ export default function App() {
           fogR={fogR}
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
+          centerX={center.x}
+          centerY={center.y}
           width={view.width}
           height={view.height}
           onReady={(r) => (rendererRef.current = r)}

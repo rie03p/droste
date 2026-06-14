@@ -15,6 +15,8 @@ type Props = {
   fogR: number;
   fogSoft: number;
   fogStr: number;
+  centerX: number;
+  centerY: number;
 };
 
 const MODES: { value: ExportMode; label: string }[] = [
@@ -53,6 +55,8 @@ export function ExportPanel(props: Props) {
         fogR: props.fogR,
         fogSoft: props.fogSoft,
         fogStr: props.fogStr,
+        centerX: props.centerX,
+        centerY: props.centerY,
         width,
         height,
         frames,

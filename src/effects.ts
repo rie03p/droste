@@ -81,15 +81,17 @@ vec3 applyFog(vec3 col){
 `;
 
 // --- Droste(渦なしの再帰ズーム) ---
-// p = 1。log-polar に画像をタイル化するだけ。×f で厳密に自己相似(同じ画像に戻る)。
+// 自己相似画像(指定点に自分の縮小コピーが入れ子)を、その蓄積点へ素直にズームする。歪みなし。
+// 画像は蓄積点まわりの ×f で同一なので、ズーム係数 s が [1/f,1] を一周するとシームレスにループ。
 const DROSTE_PLAIN = /* glsl */ `
 uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
+uniform vec2  u_center;  // ズームの中心(蓄積点, uv空間 0..1)
 void main(){
   vec2 z = baseZ();
-  vec2 w = cLog(z);
+  vec2 uv0 = 0.5 + z;
   float lnf = log(max(u_zoomF, 1.0001));
-  w.x += u_offset;                     // ズーム(周期 lnf)
-  vec2 uv = vec2(fract(w.x / lnf), fract(w.y / TAU));
+  float s = exp(-mod(u_offset, lnf));        // (1/f, 1]
+  vec2 uv = u_center + (uv0 - u_center) * s; // 蓄積点へズームイン
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
