@@ -7,7 +7,6 @@ import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
 import { composeSquare, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
-import { makeDefaultImage } from "./util/defaultImage";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
@@ -32,12 +31,23 @@ export default function App() {
   const [fogR, setFogR] = useState(0.16);
   const [fogSoft, setFogSoft] = useState(0.14);
   const [fogStr, setFogStr] = useState(0.9);
-  const [original, setOriginal] = useState<CanvasImageSource>(() => makeDefaultImage());
+  const [original, setOriginal] = useState<CanvasImageSource>(() => EFFECTS[0].sample());
   const [transform, setTransform] = useState<Transform>(IDENTITY_TRANSFORM);
+  // 初期サンプル表示中か(ユーザー画像をアップしたら false)。サンプル中はエフェクト切替で代表画像を差し替える。
+  const [usingSample, setUsingSample] = useState(true);
 
   const [aspect, setAspect] = useState(1); // 幅/高さ
   const rendererRef = useRef<Renderer | null>(null);
   const effect = useMemo(() => getEffect(effectId), [effectId]);
+
+  const handleEffectChange = (id: string) => {
+    setEffectId(id);
+    if (usingSample) {
+      // サンプル表示中はそのエフェクトの代表画像に差し替える
+      setOriginal(getEffect(id).sample());
+      setTransform(IDENTITY_TRANSFORM);
+    }
+  };
   const view = useMemo(() => dimsFromLongEdge(720, aspect), [aspect]);
   // トリミング結果を正方形テクスチャに焼き込む
   const image = useMemo(() => composeSquare(original, transform, 1024), [original, transform]);
@@ -51,6 +61,7 @@ export default function App() {
           onImage={(img) => {
             setOriginal(img);
             setTransform(IDENTITY_TRANSFORM);
+            setUsingSample(false);
           }}
         />
         <ImageEditor
@@ -61,7 +72,7 @@ export default function App() {
         />
         <Controls
           effect={effect}
-          onEffectChange={setEffectId}
+          onEffectChange={handleEffectChange}
           aspect={aspect}
           onAspect={setAspect}
           params={params}

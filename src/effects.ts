@@ -2,6 +2,8 @@
 // 各エフェクトは「出力ピクセル座標 z(複素数) → 元画像のサンプリング座標」を計算する
 // フラグメントシェーダを持つ。共通部分(complex math + 座標生成)は COMMON に集約する。
 
+import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes } from "./samples";
+
 export type ParamSpec = {
   key: string; // uniform 名は u_<key>
   label: string;
@@ -19,6 +21,8 @@ export type Effect = {
   params: ParamSpec[];
   // アニメーション(u_offset)の周期。offset を 0→period で動かすとシームレスにループする。
   animPeriod: (p: Record<string, number>) => number;
+  // エフェクトの効果が分かる代表的な初期画像(手続き的生成)
+  sample: () => HTMLCanvasElement;
 };
 
 export const VERTEX_SHADER = /* glsl */ `#version 300 es
@@ -76,10 +80,22 @@ vec3 applyFog(vec3 col){
 }
 `;
 
-// --- Droste / Escher 渦 ---
-// z_src = z^p,  p = 1 + i * strands * TAU / ln(f)
-// strands=0 → 純粋な再帰ズーム(N倍で同一)、strands=整数 → Escher 螺旋。いずれも ×f で厳密に自己相似。
-const DROSTE = /* glsl */ `
+// --- Droste(渦なしの再帰ズーム) ---
+// p = 1。log-polar に画像をタイル化するだけ。×f で厳密に自己相似(同じ画像に戻る)。
+const DROSTE_PLAIN = /* glsl */ `
+uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
+void main(){
+  vec2 z = baseZ();
+  vec2 w = cLog(z);
+  float lnf = log(max(u_zoomF, 1.0001));
+  w.x += u_offset;                     // ズーム(周期 lnf)
+  vec2 uv = vec2(fract(w.x / lnf), fract(w.y / TAU));
+  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
+}`;
+
+// --- Escher 渦(ツイストあり) ---
+// z_src = z^p,  p = 1 + i * strands * TAU / ln(f)。strands 整数で ×f に厳密自己相似のまま螺旋になる。
+const ESCHER = /* glsl */ `
 uniform float u_zoomF;   // 自己相似のスケール係数 f (>1)
 uniform float u_strands; // 螺旋の本数(整数で自己相似)
 void main(){
@@ -88,7 +104,7 @@ void main(){
   float lnf = log(max(u_zoomF, 1.0001));
   vec2 p = vec2(1.0, u_strands * TAU / lnf);
   vec2 wsrc = cMul(p, w);
-  wsrc.x += u_offset;                  // ズームアニメーション(周期 lnf)
+  wsrc.x += u_offset;                  // ズーム(周期 lnf)
   vec2 uv = vec2(fract(wsrc.x / lnf), fract(wsrc.y / TAU));
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
@@ -118,15 +134,26 @@ void main(){
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
-    name: "Droste / Escher 渦",
+    name: "Droste (再帰ズーム)",
     description:
-      "論文の中核。log-polar ツイストで Print Gallery 効果。strands=0 で純粋な再帰ズーム、整数で螺旋。zoomF 倍に拡大しても同じ画像になる。",
-    fragment: COMMON + DROSTE,
+      "渦なし。画像を log-polar にタイル化し、f 倍に拡大しても同じ画像に戻る無限ズームにする。渦にしたくない画像向け。",
+    fragment: COMMON + DROSTE_PLAIN,
+    params: [{ key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3 }],
+    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
+    sample: sampleFrames,
+  },
+  {
+    id: "escher",
+    name: "Escher 渦",
+    description:
+      "論文の中核。log-polar ツイストで Print Gallery 風の螺旋に。螺旋の本数を整数にすると f 倍ズームで同じ画像に戻る。",
+    fragment: COMMON + ESCHER,
     params: [
       { key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3 },
-      { key: "strands", label: "螺旋の本数 (整数で自己相似)", min: 0, max: 6, step: 1, default: 1 },
+      { key: "strands", label: "螺旋の本数 (整数で自己相似)", min: 1, max: 6, step: 1, default: 1 },
     ],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
+    sample: sampleCheckerboard,
   },
   {
     id: "power",
@@ -135,6 +162,7 @@ export const EFFECTS: Effect[] = [
     fragment: COMMON + POWER,
     params: [{ key: "power", label: "指数 n", min: 1, max: 8, step: 0.05, default: 2 }],
     animPeriod: () => TAU,
+    sample: sampleWheel,
   },
   {
     id: "exp",
@@ -143,6 +171,7 @@ export const EFFECTS: Effect[] = [
     fragment: COMMON + EXPMAP,
     params: [{ key: "scale", label: "スケール", min: 1, max: 12, step: 0.1, default: 6 }],
     animPeriod: () => TAU,
+    sample: sampleStripes,
   },
 ];
 
