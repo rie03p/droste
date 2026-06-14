@@ -129,7 +129,7 @@ export default function App() {
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
           winX={win.cx}
-          winY={win.cy}
+          winY={1 - win.cy}
           winSize={win.size}
         />
       </aside>
@@ -149,7 +149,7 @@ export default function App() {
           fogSoft={fogSoft}
           fogStr={fogEnabled ? fogStr : 0}
           winX={win.cx}
-          winY={win.cy}
+          winY={1 - win.cy}
           winSize={win.size}
           width={view.width}
           height={view.height}
