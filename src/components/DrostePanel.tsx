@@ -88,7 +88,7 @@ export function DrostePanel(props: Props) {
             type="number"
             min={0}
             max={1}
-            step={0.01}
+            step={0.001}
             value={round(rect.cx)}
             onChange={(e) => setField("cx", e.target.value)}
           />
@@ -99,7 +99,7 @@ export function DrostePanel(props: Props) {
             type="number"
             min={0}
             max={1}
-            step={0.01}
+            step={0.001}
             value={round(rect.cy)}
             onChange={(e) => setField("cy", e.target.value)}
           />
