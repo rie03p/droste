@@ -162,26 +162,33 @@ void main(){
   outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
-// --- log 帯を巻き戻す(exp wrap → Droste/Escher) ---
-// ソースが log 帯(BAKE の出力)のときに使う。BAKE の逆写像で、出力点を蓄積点基準の
-// log にして帯UV(横=対数半径/周期lnf, 縦=角度/2π)へ写し、fract でタイルして帯を参照する。
-// twist=0 で渦なし Droste、整数で Escher 螺旋。編集した帯を差し替えれば継ぎ目も操作できる。
+// --- log 帯を exp で巻き戻す(BAKE の厳密な逆) ---
+// 出力点を中心 pstar 基準の log にして帯UV へ写し帯を参照する。BAKE と同じ anchor(Rmax, lnf)。
+//  - tile=0: 横が [0,1] の円環だけ描き外は黒。BAKE→これ で円環がそのまま戻る(可逆性の確認)。
+//  - tile=1: 横を fract で無限タイル=中心へ縮小コピーが入れ子の Droste。twist 整数で Escher 螺旋。
 const EXPWRAP = /* glsl */ `
-uniform float u_zoomF;   // f = 1/size(窓から)
-uniform vec3  u_win;     // (cx, cy, size)
+uniform float u_zoomF;   // f(1段の縮小率)
+uniform vec3  u_win;     // (cx, cy, size) — 中心 pstar だけ使う
 uniform float u_twist;   // ねじれ(0=Droste, 整数で継ぎ目なし)
+uniform float u_tile;    // 0=タイルなし(円環のみ/可逆確認) 1=タイル(Droste)
 void main(){
-  vec2  winC  = u_win.xy;
-  float size  = u_win.z;
-  vec2  pstar = (winC - 0.5 * size) / (1.0 - size);
+  vec2  pstar = u_win.xy;
   float lnf   = log(max(u_zoomF, 1.0001));
+  float logRmax = log(0.5);
 
-  vec2 w    = cLog(applyFrame(vUv - pstar));     // log: 帯座標へ
-  vec2 beta = vec2(1.0, -u_twist * lnf / TAU);   // 傾き β
+  vec2 w    = cLog(applyFrame(vUv - pstar));     // (log ρ, φ)
+  vec2 beta = vec2(1.0, -u_twist * lnf / TAU);   // 傾き β(Escher)
   vec2 wt   = cMul(beta, w);
-  wt.x     -= u_offset;                          // 自己相似ズーム(周期 lnf)
-  vec2 suv  = vec2(wt.x / lnf, wt.y / TAU) + 0.5; // 帯UV(横=対数半径, 縦=角度)
-  outColor = vec4(applyFog(sampleImg(fract(suv)).rgb), 1.0);
+  wt.x     -= u_offset;                          // ズーム(周期 lnf)
+  float sx  = (wt.x - logRmax) / lnf + 1.0;      // 横: vUv.x=1↔Rmax, 1周期 lnf
+  float sy  = wt.y / TAU + 0.5;                  // 縦: 角度
+  if (u_tile > 0.5) {
+    outColor = vec4(applyFog(sampleImg(vec2(fract(sx), fract(sy))).rgb), 1.0);
+  } else if (sx < 0.0 || sx > 1.0) {
+    outColor = vec4(0.0, 0.0, 0.0, 1.0);         // 円環の外は黒
+  } else {
+    outColor = vec4(applyFog(sampleImg(vec2(sx, fract(sy))).rgb), 1.0);
+  }
 }`;
 
 // --- べき乗 z^n ---
@@ -218,22 +225,21 @@ void main(){
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
-// --- log 帯ベイク(中間画像化) ---
-// 元画像(自己相似化済み)を log-polar の「帯」へ焼き込む。横=対数半径(1周期=lnf)、縦=角度(2π)。
-// reduceToCell で毎ピクセル基本領域を参照するので帯は横にも縦にもタイルし、exp で巻き戻すと
-// シームレスな Droste になる。この帯テクスチャを他エフェクトのソースにも使える。
+// --- log 帯ベイク(忠実な log-polar) ---
+// 元画像を中心 pstar まわりで log-polar 展開する。横=対数半径(1周期 lnf を [Rmax/f, Rmax] に割当)、
+// 縦=角度(2π)。reduceToCell は使わない=自己相似化しない純粋な対数変換なので、後段の
+// 「exp 巻き戻し」で円環がそのまま元に戻る(可逆)。Droste 化は巻き戻し側のタイルで作る。
+// Rmax=0.5 は単位正方形の内接円。これより外(角)は1周期には入らない(log-polar の宿命)。
 const BAKE = /* glsl */ `
-uniform float u_zoomF;   // f = 1/size(窓から)
-uniform vec3  u_win;     // (cx, cy, size)
+uniform float u_zoomF;   // f(1段の縮小率)
+uniform vec3  u_win;     // (cx, cy, size) — 中心 pstar だけ使う
 void main(){
-  vec2  winC  = u_win.xy;
-  float size  = u_win.z;
-  vec2  pstar = (winC - 0.5 * size) / (1.0 - size);
+  vec2  pstar = u_win.xy;
   float lnf   = log(max(u_zoomF, 1.0001));
-  float r  = (vUv.x - 0.5) * lnf;   // 横: 対数半径(1周期 = lnf)
-  float th = (vUv.y - 0.5) * TAU;   // 縦: 角度(全周 = 2π)
-  vec2 z = pstar + cExp(vec2(r, th));
-  z = reduceToCell(z, winC, size);
+  float logRmax = log(0.5);
+  float logr = logRmax - lnf * (1.0 - vUv.x);  // 横: 対数半径(vUv.x=1 が外周 Rmax)
+  float th   = (vUv.y - 0.5) * TAU;            // 縦: 角度(全周 = 2π)
+  vec2 z = pstar + cExp(vec2(logr, th));
   outColor = vec4(sampleImg(z).rgb, 1.0);
 }`;
 export const LOGSTRIP_BAKE_FRAGMENT = COMMON + BAKE;
@@ -283,9 +289,10 @@ export const EFFECTS: Effect[] = [
     id: "expwrap",
     name: "ドロステ化 (帯を exp で巻き戻す)",
     description:
-      "ソース=log 帯のときに使う。『対数(log-polar展開)』の逆変換。帯を平面へ巻き戻して(座標は cLog でサンプル)Droste/Escher に。twist=0 で渦なし、整数で螺旋。編集した帯を差し替えれば継ぎ目まで作り込める。",
+      "ソース=log 帯のときに使う。log帯ベイクの厳密な逆変換。タイル=0 だと円環がそのまま戻る(log→exp の可逆確認)。タイル=1 で中心へ縮小コピーが入れ子の Droste に。twist 整数で Escher 螺旋。",
     fragment: COMMON + EXPWRAP,
     params: [
+      { key: "tile", label: "タイル(0=円環のみ / 1=Droste)", min: 0, max: 1, step: 1, default: 1 },
       { key: "twist", label: "ねじれ(整数で継ぎ目なし)", min: -6, max: 6, step: 0.01, default: 0 },
       { key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true },
     ],
