@@ -47,8 +47,8 @@ export default function App() {
 
   const [aspect, setAspect] = useState(1); // 幅/高さ
   const [drosteRect, setDrosteRect] = useState<DrosteRect>({ cx: 0.5, cy: 0.5, size: 1 / 3 }); // Droste のズーム窓
-  // ソース: 元画像 / log 帯(中間画像)。帯モードでは log-polar に焼いた帯をテクスチャに使う。
-  const [sourceMode, setSourceMode] = useState<"original" | "strip">("original");
+  // ソース: 元画像 / 写真をlog帯に焼く / この画像をlog帯として扱う(焼かない=対数済み入力用)。
+  const [sourceMode, setSourceMode] = useState<"original" | "bake" | "strip">("original");
   const [stripF, setStripF] = useState(STRIP_F_DEFAULT); // 帯の縮小率 f(=1段の拡大率)
   const [replacedStrip, setReplacedStrip] = useState<HTMLImageElement | null>(null); // 編集後に差し替えた帯
   const rendererRef = useRef<Renderer | null>(null);
@@ -57,8 +57,8 @@ export default function App() {
 
   const handleEffectChange = (id: string) => {
     setEffectId(id);
-    // ドロステ化(帯巻き戻し)は log 帯ソース前提なので自動で帯モードへ
-    if (id === "expwrap") setSourceMode("strip");
+    // ドロステ化(帯巻き戻し)は帯ソース前提。元画像のままなら「写真を焼く」へ。
+    if (id === "expwrap") setSourceMode((m) => (m === "original" ? "bake" : m));
     if (usingSample) {
       // サンプル表示中はそのエフェクトの代表画像に差し替える
       setOriginal(getEffect(id).sample());
@@ -72,7 +72,10 @@ export default function App() {
 
   // Droste / Escher / 対数 は同じ自己相似画像(窓に画像自身を埋め込み)を使う
   const isSelfSimilar = effect.id === "droste" || effect.id === "escher" || effect.id === "log";
-  const useStrip = sourceMode === "strip" || effect.id === "expwrap";
+  // 帯の種別: none=元画像 / bake=写真を焼く / direct=この画像をそのまま帯にする(対数済み)
+  const stripKind: "none" | "bake" | "direct" =
+    sourceMode === "strip" ? "direct" : sourceMode === "bake" || effect.id === "expwrap" ? "bake" : "none";
+  const useStrip = stripKind !== "none";
   // 自己相似系(元画像ソース)だけ窓(drosteRect)で f を決める。
   const usesDrosteWindow = isSelfSimilar && !useStrip;
   const needsWindow = usesDrosteWindow || effect.id === "expwrap";
@@ -89,9 +92,9 @@ export default function App() {
   // 自己相似系のレベル0画像(ビュー比)。帯ベイクの入力にもこれを使う。
   const cover = useMemo(() => makeCover(square, view.width, view.height), [square, view.width, view.height]);
 
-  // log 帯(中間画像)を焼く。中心=画像中心、縮小率 f で1周期ぶんを焼く。
+  // log 帯(中間画像)を焼く。中心=画像中心、縮小率 f で1周期ぶんを焼く。bake のときだけ。
   const bakedStrip = useMemo(() => {
-    if (!useStrip) return null;
+    if (stripKind !== "bake") return null;
     const baker = (bakerRef.current ??= new LogStripBaker());
     return baker.bake(
       cover,
@@ -99,17 +102,39 @@ export default function App() {
       STRIP_W,
       STRIP_H
     );
-  }, [useStrip, cover, stripF, stripWin]);
+  }, [stripKind, cover, stripF, stripWin]);
   const stripSource = replacedStrip ?? bakedStrip;
 
-  // テクスチャ: 帯モード=帯 / 自己相似=ビュー比レベル0 / それ以外=正方形クロップ
-  const texture = useStrip ? stripSource ?? cover : isSelfSimilar ? cover : square;
-  // 帯はベイカーが上下反転済みなのでメインでは反転しない。元画像系は反転する。
-  const flipImageY = !useStrip;
+  // direct: アップロード画像をそのまま帯テクスチャに(焼かない=対数済み入力用)。クロップしない。
+  const directStrip = useMemo(() => {
+    if (stripKind !== "direct") return null;
+    const iw = (original as HTMLImageElement | HTMLCanvasElement).width;
+    const ih = (original as HTMLImageElement | HTMLCanvasElement).height;
+    const c = document.createElement("canvas");
+    c.width = iw;
+    c.height = ih;
+    c.getContext("2d")!.drawImage(original, 0, 0);
+    return c;
+  }, [stripKind, original]);
+
+  // テクスチャ: bake=焼いた帯 / direct=画像そのまま / 自己相似=ビュー比レベル0 / 他=正方形クロップ
+  const texture =
+    stripKind === "bake"
+      ? stripSource ?? cover
+      : stripKind === "direct"
+      ? directStrip ?? cover
+      : isSelfSimilar
+      ? cover
+      : square;
+  // bake はベイカーが上下反転済みなのでメインでは反転しない。それ以外は通常の画像として反転。
+  const flipImageY = stripKind !== "bake";
   // 同一 canvas を再ベイクしても参照が変わらないので、内容変化を検知させるための版番号
-  const imageVersion = useStrip
-    ? `strip:${replacedStrip ? "edited" : "baked"}:${square.width}:${stripF}`
-    : `src:${isSelfSimilar ? "cover" : "square"}:${square.width}:${view.width}`;
+  const imageVersion =
+    stripKind === "bake"
+      ? `bake:${replacedStrip ? "edited" : "baked"}:${square.width}:${stripF}`
+      : stripKind === "direct"
+      ? `direct:${square.width}`
+      : `src:${isSelfSimilar ? "cover" : "square"}:${square.width}:${view.width}`;
 
   return (
     <div className="app">
@@ -129,14 +154,15 @@ export default function App() {
           <select
             className="full-select"
             value={sourceMode}
-            onChange={(e) => setSourceMode(e.target.value as "original" | "strip")}
+            onChange={(e) => setSourceMode(e.target.value as "original" | "bake" | "strip")}
           >
             <option value="original">元画像</option>
-            <option value="strip">log 帯（中間画像）</option>
+            <option value="bake">写真を log 帯に焼く</option>
+            <option value="strip">この画像は log 帯（焼かない）</option>
           </select>
           <p className="desc">
-            log 帯にすると元画像を log-polar に焼いた帯がソースになる。exp 系で巻き戻すと Droste、
-            他のエフェクトに通すと帯ならではの渦になる。
+            「写真を焼く」は元画像を log-polar に焼いて帯にする。「焼かない」は対数済みの画像を
+            そのまま帯として扱う（二重に対数を取らない）。どちらも exp 系で巻き戻すと Droste になる。
           </p>
           {useStrip && (
             <label className="slider">
@@ -195,7 +221,7 @@ export default function App() {
           onFogStr={setFogStr}
         />
         {usesDrosteWindow && <DrostePanel texture={cover} rect={drosteRect} onRect={setDrosteRect} />}
-        {useStrip && stripSource && (
+        {stripKind === "bake" && (
           <StripPanel
             strip={bakedStrip ?? cover}
             replaced={replacedStrip}
