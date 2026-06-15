@@ -16,9 +16,8 @@ import "./App.css";
 // log 帯テクスチャの解像度(横=対数半径, 縦=角度)
 const STRIP_W = 1280;
 const STRIP_H = 640;
-// 帯モードは自己相似の窓を使わない。中心=画像中心・f 固定で焼き、巻き戻しは z 送り+exp のみ。
-const STRIP_WIN = { cx: 0.5, cy: 0.5, size: 1 / 3 };
-const STRIP_F = 1 / STRIP_WIN.size;
+// 帯モードは自己相似の窓(矩形)を使わず中心=画像中心。縮小率 f(=1段の拡大率)だけ可変。
+const STRIP_F_DEFAULT = 3;
 
 // 全エフェクトのパラメータ初期値をまとめて保持する
 function buildInitialParams(): Record<string, number> {
@@ -50,6 +49,7 @@ export default function App() {
   const [drosteRect, setDrosteRect] = useState<DrosteRect>({ cx: 0.5, cy: 0.5, size: 1 / 3 }); // Droste のズーム窓
   // ソース: 元画像 / log 帯(中間画像)。帯モードでは log-polar に焼いた帯をテクスチャに使う。
   const [sourceMode, setSourceMode] = useState<"original" | "strip">("original");
+  const [stripF, setStripF] = useState(STRIP_F_DEFAULT); // 帯の縮小率 f(=1段の拡大率)
   const [replacedStrip, setReplacedStrip] = useState<HTMLImageElement | null>(null); // 編集後に差し替えた帯
   const rendererRef = useRef<Renderer | null>(null);
   const bakerRef = useRef<LogStripBaker | null>(null);
@@ -73,11 +73,13 @@ export default function App() {
   // Droste / Escher / 対数 は同じ自己相似画像(窓に画像自身を埋め込み)を使う
   const isSelfSimilar = effect.id === "droste" || effect.id === "escher" || effect.id === "log";
   const useStrip = sourceMode === "strip" || effect.id === "expwrap";
-  // 自己相似系(元画像ソース)だけ窓(drosteRect)で f を決める。帯モードは f 固定。
+  // 自己相似系(元画像ソース)だけ窓(drosteRect)で f を決める。
   const usesDrosteWindow = isSelfSimilar && !useStrip;
   const needsWindow = usesDrosteWindow || effect.id === "expwrap";
-  const win = usesDrosteWindow ? drosteRect : STRIP_WIN;
-  const zoomF = usesDrosteWindow ? 1 / drosteRect.size : STRIP_F;
+  // 帯モードは中心=画像中心。窓サイズは縮小率 f から決める(size=1/f なら自己相似が成立)。
+  const stripWin = useMemo(() => ({ cx: 0.5, cy: 0.5, size: 1 / stripF }), [stripF]);
+  const win = usesDrosteWindow ? drosteRect : stripWin;
+  const zoomF = usesDrosteWindow ? 1 / drosteRect.size : stripF;
   // 窓のサイズからズーム倍率 f=1/size を決め、u_zoomF に注入する。
   // size はシェーダの窓サイズ(u_win.z)と完全一致させること(ずれるとループが崩れる)。
   const renderParams = useMemo(
@@ -87,17 +89,17 @@ export default function App() {
   // 自己相似系のレベル0画像(ビュー比)。帯ベイクの入力にもこれを使う。
   const cover = useMemo(() => makeCover(square, view.width, view.height), [square, view.width, view.height]);
 
-  // log 帯(中間画像)を焼く。帯モードは窓を使わず中心=画像中心・f 固定で焼く。
+  // log 帯(中間画像)を焼く。中心=画像中心、縮小率 f で1周期ぶんを焼く。
   const bakedStrip = useMemo(() => {
     if (!useStrip) return null;
     const baker = (bakerRef.current ??= new LogStripBaker());
     return baker.bake(
       cover,
-      { zoomF: STRIP_F, winX: STRIP_WIN.cx, winY: 1 - STRIP_WIN.cy, winSize: STRIP_WIN.size },
+      { zoomF: stripF, winX: stripWin.cx, winY: 1 - stripWin.cy, winSize: stripWin.size },
       STRIP_W,
       STRIP_H
     );
-  }, [useStrip, cover]);
+  }, [useStrip, cover, stripF, stripWin]);
   const stripSource = replacedStrip ?? bakedStrip;
 
   // テクスチャ: 帯モード=帯 / 自己相似=ビュー比レベル0 / それ以外=正方形クロップ
@@ -106,7 +108,7 @@ export default function App() {
   const flipImageY = !useStrip;
   // 同一 canvas を再ベイクしても参照が変わらないので、内容変化を検知させるための版番号
   const imageVersion = useStrip
-    ? `strip:${replacedStrip ? "edited" : "baked"}:${square.width}`
+    ? `strip:${replacedStrip ? "edited" : "baked"}:${square.width}:${stripF}`
     : `src:${isSelfSimilar ? "cover" : "square"}:${square.width}:${view.width}`;
 
   return (
@@ -136,6 +138,25 @@ export default function App() {
             log 帯にすると元画像を log-polar に焼いた帯がソースになる。exp 系で巻き戻すと Droste、
             他のエフェクトに通すと帯ならではの渦になる。
           </p>
+          {useStrip && (
+            <label className="slider">
+              <span className="slider-label">
+                縮小率 f（1段の拡大率）
+                <span className="slider-meta">
+                  <code className="var">f</code>
+                  <em>{stripF.toFixed(1)}</em>
+                </span>
+              </span>
+              <input
+                type="range"
+                min={1.2}
+                max={16}
+                step={0.1}
+                value={stripF}
+                onChange={(e) => setStripF(parseFloat(e.target.value))}
+              />
+            </label>
+          )}
         </div>
         <ImageEditor
           original={original}
