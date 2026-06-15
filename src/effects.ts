@@ -272,7 +272,7 @@ export const EFFECTS: Effect[] = [
     id: "log",
     name: "対数 (log-polar 展開)",
     description:
-      "Droste と同じ窓で作った自己相似画像を複素 log で帯に展開して表示。スケール自己相似が log では横の周期になるので、横スクロール(ズーム)で帯がシームレスにループする。",
+      "Droste と同じ窓で作った自己相似画像を複素 log で帯に展開して表示。スケール自己相似が log では横の周期になるので、横スクロール(ズーム)で帯がシームレスにループする。逆変換(元に戻す)は『ドロステ化(expwrap)』。『複素 exp』は逆ではない(どちらも exp サンプル系)。",
     fragment: COMMON + LOGPOLAR,
     // f は窓から決まるので隠す(u_zoomF 設定のため params には残す)
     params: [{ key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true }],
@@ -283,7 +283,7 @@ export const EFFECTS: Effect[] = [
     id: "expwrap",
     name: "ドロステ化 (帯を exp で巻き戻す)",
     description:
-      "ソース=log 帯のときに使う。帯を exp で平面へ巻き戻して Droste/Escher に。twist=0 で渦なし、整数で螺旋。編集した帯を差し替えれば継ぎ目まで作り込める。",
+      "ソース=log 帯のときに使う。『対数(log-polar展開)』の逆変換。帯を平面へ巻き戻して(座標は cLog でサンプル)Droste/Escher に。twist=0 で渦なし、整数で螺旋。編集した帯を差し替えれば継ぎ目まで作り込める。",
     fragment: COMMON + EXPWRAP,
     params: [
       { key: "twist", label: "ねじれ(整数で継ぎ目なし)", min: -6, max: 6, step: 0.01, default: 0 },
@@ -313,7 +313,8 @@ export const EFFECTS: Effect[] = [
   {
     id: "exp",
     name: "複素 exp",
-    description: "exp 写像。直線の帯を同心円へ写す対数螺旋的なタイリング。",
+    description:
+      "exp 写像。直線の帯を同心円へ写す対数螺旋的なタイリング。独立した装飾エフェクトで、『対数(log-polar展開)』の逆ではない(どちらも exp サンプル系で、繋ぐと exp∘exp になり元に戻らない)。対数を元に戻すには『ドロステ化(expwrap)』を使う。",
     fragment: COMMON + EXPMAP,
     params: [{ key: "scale", label: "スケール", min: 1, max: 12, step: 0.1, default: 6 }],
     animPeriod: () => TAU,
