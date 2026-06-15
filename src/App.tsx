@@ -13,9 +13,11 @@ import { LogStripBaker } from "./webgl/LogStripBaker";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
-// log 帯テクスチャの解像度(横=対数半径, 縦=角度)
-const STRIP_W = 1280;
-const STRIP_H = 640;
+// log 帯テクスチャの解像度(横=対数半径, 縦=角度)。
+// 縦(角度)が外周リングの解像度を決める=画質の要。外周の円周(約2π·Rmax·元画像px)に
+// 見合うよう高めに取る。横(半径方向)は1周期 lnf を覆えれば十分なので控えめ。
+const STRIP_W = 1536;
+const STRIP_H = 4096;
 // 帯モードは自己相似の窓(矩形)を使わず中心=画像中心。縮小率 f(=1段の拡大率)だけ可変。
 const STRIP_F_DEFAULT = 3;
 
