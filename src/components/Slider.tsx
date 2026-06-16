@@ -8,6 +8,7 @@ type Props = {
   max: number;
   step: number;
   value: number;
+  steppers?: boolean; // 数値入力に − / + ボタンを併設する
   onChange: (v: number) => void;
 };
 
@@ -38,6 +39,7 @@ export function Slider(p: Props) {
           min={p.min}
           max={p.max}
           step={p.step}
+          steppers={p.steppers}
           onChange={p.onChange}
         />
       </div>
