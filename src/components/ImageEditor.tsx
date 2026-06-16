@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { composeSquare, type Transform } from "../util/compose";
+import { Slider } from "./Slider";
 
 type Props = {
   original: CanvasImageSource | null;
@@ -7,33 +8,6 @@ type Props = {
   onChange: (t: Transform) => void;
   onReset: () => void;
 };
-
-function Slider(p: {
-  label: string;
-  hint: string;
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="slider">
-      <span className="slider-label">
-        {p.label}
-        <code className="var">{p.hint}</code>
-      </span>
-      <input
-        type="range"
-        min={p.min}
-        max={p.max}
-        step={p.step}
-        value={p.value}
-        onChange={(e) => p.onChange(parseFloat(e.target.value))}
-      />
-    </label>
-  );
-}
 
 const PREVIEW = 168;
 

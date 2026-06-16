@@ -4,6 +4,7 @@ import { Controls } from "./components/Controls";
 import { ImageUploader } from "./components/ImageUploader";
 import { ImageEditor } from "./components/ImageEditor";
 import { DrostePanel, type DrosteRect } from "./components/DrostePanel";
+import { Slider } from "./components/Slider";
 import { StripPanel } from "./components/StripPanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
@@ -186,23 +187,15 @@ export default function App() {
             そのまま帯として扱う（二重に対数を取らない）。どちらも exp 系で巻き戻すと Droste になる。
           </p>
           {useStrip && (
-            <label className="slider">
-              <span className="slider-label">
-                縮小率 f（1段の拡大率）
-                <span className="slider-meta">
-                  <code className="var">f</code>
-                  <em>{stripF.toFixed(1)}</em>
-                </span>
-              </span>
-              <input
-                type="range"
-                min={1.2}
-                max={16}
-                step={0.1}
-                value={stripF}
-                onChange={(e) => setStripF(parseFloat(e.target.value))}
-              />
-            </label>
+            <Slider
+              label="縮小率 f（1段の拡大率）"
+              hint="f"
+              min={1.2}
+              max={16}
+              step={0.1}
+              value={stripF}
+              onChange={setStripF}
+            />
           )}
         </div>
         <ImageEditor

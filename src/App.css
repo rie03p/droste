@@ -217,6 +217,38 @@
   color: #82829a;
 }
 
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #7c3aed;
+}
+.slider-num {
+  width: 60px;
+  flex: none;
+  padding: 4px 6px;
+  background: #20202c;
+  color: #eee;
+  border: 1px solid #34344a;
+  border-radius: 5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* 数値入力のスピナーは詰まるので非表示(値はスライダー/キー入力で操作) */
+.slider-num::-webkit-outer-spin-button,
+.slider-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.slider-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .slider input[type="range"] {
   width: 100%;
   accent-color: #7c3aed;

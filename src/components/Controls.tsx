@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { EFFECTS, type Effect } from "../effects";
 import { ASPECTS } from "../aspects";
+import { Slider } from "./Slider";
 
 type Props = {
   effect: Effect;
@@ -32,36 +33,6 @@ type Props = {
   fogStr: number;
   onFogStr: (v: number) => void;
 };
-
-function Slider(p: {
-  label: string;
-  hint?: string; // 操作している変数/単位
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="slider">
-      <span className="slider-label">
-        {p.label}
-        <span className="slider-meta">
-          {p.hint && <code className="var">{p.hint}</code>}
-          <em>{p.value.toFixed(p.step < 1 ? 2 : 0)}</em>
-        </span>
-      </span>
-      <input
-        type="range"
-        min={p.min}
-        max={p.max}
-        step={p.step}
-        value={p.value}
-        onChange={(e) => p.onChange(parseFloat(e.target.value))}
-      />
-    </label>
-  );
-}
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return <span className="section-title">{children}</span>;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Slider } from "./Slider";
 
 type Props = {
   strip: HTMLCanvasElement; // 焼き込んだ log 帯
@@ -68,13 +69,7 @@ export function StripPanel(props: Props) {
         タイル数を上げると右端↔左端のシームを確認でき、その横タイル画像が inverse 前の画像。
       </p>
       <canvas ref={ref} width={PW} height={ph} className="strip-preview" />
-      <label className="slider">
-        <span className="slider-label">
-          横タイル数
-          <em>{tiles}</em>
-        </span>
-        <input type="range" min={1} max={4} step={1} value={tiles} onChange={(e) => setTiles(+e.target.value)} />
-      </label>
+      <Slider label="横タイル数" min={1} max={4} step={1} value={tiles} onChange={(v) => setTiles(Math.round(v))} />
       <div className="strip-actions">
         <button onClick={() => save(1, `logstrip-${Date.now()}.png`)}>1周期を保存</button>
         <button onClick={() => save(tiles, `logstrip-tiled-x${tiles}-${Date.now()}.png`)}>
