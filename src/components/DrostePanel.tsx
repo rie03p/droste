@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { NumberInput } from "./NumberInput";
 
 export type DrosteRect = { cx: number; cy: number; size: number };
 
@@ -84,51 +85,25 @@ export function DrostePanel(props: Props) {
       <div className="droste-inputs">
         <label>
           横位置
-          <input
-            type="number"
-            min={0}
-            max={1}
-            step={0.001}
-            value={round(rect.cx)}
-            onChange={(e) => setField("cx", e.target.value)}
-          />
+          <NumberInput min={0} max={1} step={0.001} value={rect.cx} onChange={(v) => setField("cx", v)} />
         </label>
         <label>
           縦位置
-          <input
-            type="number"
-            min={0}
-            max={1}
-            step={0.001}
-            value={round(rect.cy)}
-            onChange={(e) => setField("cy", e.target.value)}
-          />
+          <NumberInput min={0} max={1} step={0.001} value={rect.cy} onChange={(v) => setField("cy", v)} />
         </label>
         <label>
           大きさ
-          <input
-            type="number"
-            min={0.002}
-            max={0.9}
-            step={0.001}
-            value={round(rect.size)}
-            onChange={(e) => setField("size", e.target.value)}
-          />
+          <NumberInput min={0.002} max={0.9} step={0.001} value={rect.size} onChange={(v) => setField("size", v)} />
         </label>
       </div>
       <p className="desc">1段あたりの拡大率 f = {(1 / rect.size).toFixed(1)}</p>
     </div>
   );
 
-  function setField(key: keyof DrosteRect, raw: string) {
-    const v = parseFloat(raw);
-    if (Number.isNaN(v)) return;
-    const next = { ...rect, [key]: key === "size" ? clamp(v, 0.002, 0.9) : clamp(v, 0, 1) };
-    props.onRect(clampRect(next));
+  function setField(key: keyof DrosteRect, v: number) {
+    props.onRect(clampRect({ ...rect, [key]: v }));
   }
 }
-
-const round = (v: number) => Math.round(v * 1000) / 1000;
 
 // 矩形をビュー内に収める
 function clampRect(r: DrosteRect): DrosteRect {
