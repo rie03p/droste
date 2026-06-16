@@ -8,7 +8,7 @@ import { StripPanel } from "./components/StripPanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
-import { composeSquare, makeCover, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
+import { composeSquare, makeCover, maxTextureSize, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
 import { LogStripBaker } from "./webgl/LogStripBaker";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
@@ -20,6 +20,11 @@ const STRIP_W = 1536;
 const STRIP_H = 4096;
 // 帯モードは自己相似の窓(矩形)を使わず中心=画像中心。縮小率 f(=1段の拡大率)だけ可変。
 const STRIP_F_DEFAULT = 3;
+
+// ライブ描画(画面/GIF プレビュー)の長辺。重くしすぎないため一定に保つ。
+const VIEW_LONG = 1080;
+// テクスチャ解像度の下限。入力がこれより小さくても、ズーム時の粗さ抑制のため最低限確保する。
+const TEX_MIN = 1536;
 
 // 全エフェクトのパラメータ初期値をまとめて保持する
 function buildInitialParams(): Record<string, number> {
@@ -67,10 +72,20 @@ export default function App() {
       setTransform(IDENTITY_TRANSFORM);
     }
   };
-  const view = useMemo(() => dimsFromLongEdge(1080, aspect), [aspect]);
+  // 描画(画面表示・プレビュー)の解像度。テクスチャ解像度とは分離して一定に保つ。
+  const view = useMemo(() => dimsFromLongEdge(VIEW_LONG, aspect), [aspect]);
+
+  // テクスチャの長辺 = 入力画像のネイティブ長辺(GPU 上限でのみ頭打ち)。下限 TEX_MIN。
+  // これにより入力解像度に実質上限を設けず、ズーム時もネイティブの解像感を保つ。
+  const texLong = useMemo(() => {
+    const iw = (original as HTMLImageElement | HTMLCanvasElement).width || TEX_MIN;
+    const ih = (original as HTMLImageElement | HTMLCanvasElement).height || TEX_MIN;
+    return Math.max(TEX_MIN, Math.min(Math.round(Math.max(iw, ih)), maxTextureSize()));
+  }, [original]);
+  const texDims = useMemo(() => dimsFromLongEdge(texLong, aspect), [texLong, aspect]);
 
   // トリミング結果を正方形に焼き込む(高解像度でズーム時の粗さを抑える)
-  const square = useMemo(() => composeSquare(original, transform, 1536), [original, transform]);
+  const square = useMemo(() => composeSquare(original, transform, texLong), [original, transform, texLong]);
 
   // Droste / Escher / 対数 は同じ自己相似画像(窓に画像自身を埋め込み)を使う
   const isSelfSimilar = effect.id === "droste" || effect.id === "escher" || effect.id === "log";
@@ -92,7 +107,11 @@ export default function App() {
     [needsWindow, params, zoomF]
   );
   // 自己相似系のレベル0画像(ビュー比)。帯ベイクの入力にもこれを使う。
-  const cover = useMemo(() => makeCover(square, view.width, view.height), [square, view.width, view.height]);
+  // 描画解像度ではなくテクスチャ解像度(texDims)で焼き、ズーム時もネイティブの解像感を保つ。
+  const cover = useMemo(
+    () => makeCover(square, texDims.width, texDims.height),
+    [square, texDims.width, texDims.height]
+  );
 
   // log 帯(中間画像)を焼く。中心=画像中心、縮小率 f で1周期ぶんを焼く。bake のときだけ。
   const bakedStrip = useMemo(() => {
