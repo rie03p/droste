@@ -24,6 +24,9 @@ export type Effect = {
   animPeriod: (p: Record<string, number>) => number;
   // エフェクトの効果が分かる代表的な初期画像(手続き的生成)
   sample: () => HTMLCanvasElement;
+  // 「ズームする範囲を指定」(DrostePanel の窓)を使う自己相似系か。
+  // true のとき窓から f=1/size を決めて u_zoomF に注入し、テクスチャはビュー比の cover を使う。
+  usesWindow?: boolean;
 };
 
 export const VERTEX_SHADER = /* glsl */ `#version 300 es
@@ -79,7 +82,7 @@ vec2 applyFrame(vec2 d){
   return d;
 }
 
-// 自己相似画像の基本領域 [0,1]²\窓 へ座標を畳む(窓の中→展開 / 画像の外→収縮)。
+// 自己相似画像の基本領域 [0,1]² (窓を除く) へ座標を畳む(窓の中→展開 / 画像の外→収縮)。
 // 常にレベル0のフル解像度を参照するので、どのスケールでも鮮明度が一定。
 vec2 reduceToCell(vec2 q, vec2 winC, float size){
   for (int i = 0; i < 96; i++) {
@@ -162,35 +165,6 @@ void main(){
   outColor = vec4(applyFog(sampleImg(q).rgb), 1.0);
 }`;
 
-// --- log 帯を exp で巻き戻す(BAKE の厳密な逆) ---
-// 出力点を中心 pstar 基準の log にして帯UV へ写し帯を参照する。BAKE と同じ anchor(Rmax, lnf)。
-//  - tile=0: 横が [0,1] の円環だけ描き外は黒。BAKE→これ で円環がそのまま戻る(可逆性の確認)。
-//  - tile=1: 横を fract で無限タイル=中心へ縮小コピーが入れ子の Droste。twist 整数で Escher 螺旋。
-const EXPWRAP = /* glsl */ `
-uniform float u_zoomF;   // f(1段の縮小率)
-uniform vec3  u_win;     // (cx, cy, size) — 中心 pstar だけ使う
-uniform float u_twist;   // ねじれ(0=Droste, 整数で継ぎ目なし)
-uniform float u_tile;    // 0=タイルなし(円環のみ/可逆確認) 1=タイル(Droste)
-void main(){
-  vec2  pstar = u_win.xy;
-  float lnf   = log(max(u_zoomF, 1.0001));
-  float logRmax = log(0.5);
-
-  vec2 w    = cLog(applyFrame(vUv - pstar));     // (log ρ, φ)
-  vec2 beta = vec2(1.0, -u_twist * lnf / TAU);   // 傾き β(Escher)
-  vec2 wt   = cMul(beta, w);
-  wt.x     -= u_offset;                          // ズーム(周期 lnf)
-  float sx  = (wt.x - logRmax) / lnf + 1.0;      // 横: vUv.x=1↔Rmax, 1周期 lnf
-  float sy  = wt.y / TAU + 0.5;                  // 縦: 角度
-  if (u_tile > 0.5) {
-    outColor = vec4(applyFog(sampleImg(vec2(fract(sx), fract(sy))).rgb), 1.0);
-  } else if (sx < 0.0 || sx > 1.0) {
-    outColor = vec4(0.0, 0.0, 0.0, 1.0);         // 円環の外は黒
-  } else {
-    outColor = vec4(applyFog(sampleImg(vec2(sx, fract(sy))).rgb), 1.0);
-  }
-}`;
-
 // --- べき乗 z^n ---
 const POWER = /* glsl */ `
 uniform float u_power;
@@ -225,25 +199,6 @@ void main(){
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
-// --- log 帯ベイク(忠実な log-polar) ---
-// 元画像を中心 pstar まわりで log-polar 展開する。横=対数半径(1周期 lnf を [Rmax/f, Rmax] に割当)、
-// 縦=角度(2π)。reduceToCell は使わない=自己相似化しない純粋な対数変換なので、後段の
-// 「exp 巻き戻し」で円環がそのまま元に戻る(可逆)。Droste 化は巻き戻し側のタイルで作る。
-// Rmax=0.5 は単位正方形の内接円。これより外(角)は1周期には入らない(log-polar の宿命)。
-const BAKE = /* glsl */ `
-uniform float u_zoomF;   // f(1段の縮小率)
-uniform vec3  u_win;     // (cx, cy, size) — 中心 pstar だけ使う
-void main(){
-  vec2  pstar = u_win.xy;
-  float lnf   = log(max(u_zoomF, 1.0001));
-  float logRmax = log(0.5);
-  float logr = logRmax - lnf * (1.0 - vUv.x);  // 横: 対数半径(vUv.x=1 が外周 Rmax)
-  float th   = (vUv.y - 0.5) * TAU;            // 縦: 角度(全周 = 2π)
-  vec2 z = pstar + cExp(vec2(logr, th));
-  outColor = vec4(sampleImg(z).rgb, 1.0);
-}`;
-export const LOGSTRIP_BAKE_FRAGMENT = COMMON + BAKE;
-
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
@@ -259,6 +214,7 @@ export const EFFECTS: Effect[] = [
     ],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleFrames,
+    usesWindow: true,
   },
   {
     id: "escher",
@@ -273,31 +229,19 @@ export const EFFECTS: Effect[] = [
     ],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
+    usesWindow: true,
   },
   {
     id: "log",
     name: "対数 (log-polar 展開)",
     description:
-      "Droste と同じ窓で作った自己相似画像を複素 log で帯に展開して表示。スケール自己相似が log では横の周期になるので、横スクロール(ズーム)で帯がシームレスにループする。逆変換(元に戻す)は『ドロステ化(expwrap)』。『複素 exp』は逆ではない(どちらも exp サンプル系)。",
+      "Droste と同じ窓で作った自己相似画像を複素 log で帯に展開して表示。スケール自己相似が log では横の周期になるので、横スクロール(ズーム)で帯がシームレスにループする。『複素 exp』は逆ではない(どちらも exp サンプル系)。",
     fragment: COMMON + LOGPOLAR,
     // f は窓から決まるので隠す(u_zoomF 設定のため params には残す)
     params: [{ key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true }],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
-  },
-  {
-    id: "expwrap",
-    name: "ドロステ化 (帯を exp で巻き戻す)",
-    description:
-      "ソース=log 帯のときに使う。log帯ベイクの厳密な逆変換。タイル=0 だと円環がそのまま戻る(log→exp の可逆確認)。タイル=1 で中心へ縮小コピーが入れ子の Droste に。twist 整数で Escher 螺旋。",
-    fragment: COMMON + EXPWRAP,
-    params: [
-      { key: "tile", label: "タイル(0=円環のみ / 1=Droste)", min: 0, max: 1, step: 1, default: 1 },
-      { key: "twist", label: "ねじれ(整数で継ぎ目なし)", min: -6, max: 6, step: 0.01, default: 0 },
-      { key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true },
-    ],
-    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
-    sample: sampleCheckerboard,
+    usesWindow: true,
   },
   {
     id: "power",
@@ -321,7 +265,7 @@ export const EFFECTS: Effect[] = [
     id: "exp",
     name: "複素 exp",
     description:
-      "exp 写像。直線の帯を同心円へ写す対数螺旋的なタイリング。独立した装飾エフェクトで、『対数(log-polar展開)』の逆ではない(どちらも exp サンプル系で、繋ぐと exp∘exp になり元に戻らない)。対数を元に戻すには『ドロステ化(expwrap)』を使う。",
+      "exp 写像。直線の帯を同心円へ写す対数螺旋的なタイリング。独立した装飾エフェクトで、『対数(log-polar展開)』の逆ではない(どちらも exp サンプル系で、繋ぐと exp∘exp になり元に戻らない)。",
     fragment: COMMON + EXPMAP,
     params: [{ key: "scale", label: "スケール", min: 1, max: 12, step: 0.1, default: 6 }],
     animPeriod: () => TAU,
