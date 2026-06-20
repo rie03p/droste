@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ShaderCanvas } from "./components/ShaderCanvas";
 import { Controls } from "./components/Controls";
 import { ImageUploader } from "./components/ImageUploader";
@@ -41,6 +41,12 @@ export default function App() {
   const [transform, setTransform] = useState<Transform>(IDENTITY_TRANSFORM);
   // 初期サンプル表示中か(ユーザー画像をアップしたら false)。サンプル中はエフェクト切替で代表画像を差し替える。
   const [usingSample, setUsingSample] = useState(true);
+
+  // 配色テーマ。ライトモードを既定にする(gruvbox light / dark)。
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   const [aspect, setAspect] = useState(1); // 幅/高さ
   const [drosteRect, setDrosteRect] = useState<DrosteRect>({ cx: 0.5, cy: 0.5, size: 1 / 3 }); // ズームする範囲(窓)
@@ -93,7 +99,16 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <h1>Droste Lab</h1>
+        <div className="sidebar-head">
+          <h1>Droste Lab</h1>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+            title="テーマを切り替え"
+          >
+            {theme === "light" ? "☾ dark" : "☀ light"}
+          </button>
+        </div>
         <p className="tagline">等角写像で画像を渦に。Escher の Droste 効果と仲間たち。</p>
         <ImageUploader
           onImage={(img) => {

@@ -1,9 +1,50 @@
+/* gruvbox テーマ。:root = light(デフォルト)、[data-theme="dark"] = dark。
+   配色は gruvbox の公式パレットに準拠。意味的な変数だけを各コンポーネントから参照する。 */
 :root {
+  /* gruvbox light */
+  --bg: #fbf1c7; /* bg0 */
+  --panel: #f2e5bc; /* bg0_s */
+  --panel-2: #ebdbb2; /* bg1 — 入力・コントロール背景 */
+  --panel-3: #d5c4a1; /* bg2 — ステッパー等 */
+  --border: #d5c4a1; /* bg2 */
+  --border-strong: #bdae93; /* bg3 */
+  --text: #3c3836; /* fg1 */
+  --text-dim: #504945; /* fg2 */
+  --text-faint: #7c6f64; /* fg4 */
+  --accent: #af3a03; /* orange faded */
+  --accent-strong: #d65d0e; /* orange */
+  --accent-2: #427b58; /* aqua faded */
+  --on-accent: #fbf1c7;
+  --stage-a: #ebdbb2;
+  --stage-b: #e3d5a8;
+  --shadow: rgba(60, 56, 54, 0.18);
+  color-scheme: light;
+
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-  color-scheme: dark;
-  color: #e7e7f0;
-  background: #0f0f16;
+  color: var(--text);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+[data-theme="dark"] {
+  /* gruvbox dark */
+  --bg: #282828; /* bg0 */
+  --panel: #32302f; /* bg0_s */
+  --panel-2: #3c3836; /* bg1 */
+  --panel-3: #504945; /* bg2 */
+  --border: #504945; /* bg2 */
+  --border-strong: #665c54; /* bg3 */
+  --text: #ebdbb2; /* fg1 */
+  --text-dim: #d5c4a1; /* fg2 */
+  --text-faint: #a89984; /* fg4 */
+  --accent: #fe8019; /* orange */
+  --accent-strong: #fabd2f; /* yellow */
+  --accent-2: #8ec07c; /* aqua */
+  --on-accent: #282828;
+  --stage-a: #32302f;
+  --stage-b: #3c3836;
+  --shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
 }
 
 * {

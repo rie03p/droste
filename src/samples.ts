@@ -1,5 +1,22 @@
 // 各エフェクトの代表的な初期画像。
 // 権利問題を避けるため、すべてその場で手続き的に描画する(外部画像・既存作品は使わない)。
+// 配色は gruvbox パレットで統一する。
+
+// gruvbox のアクセント色(鮮やかな並び)とベース色。
+const GB = {
+  red: "#cc241d",
+  orange: "#d65d0e",
+  yellow: "#d79921",
+  green: "#98971a",
+  aqua: "#689d6a",
+  blue: "#458588",
+  purple: "#b16286",
+  cream: "#fbf1c7", // bg0 light
+  bg: "#282828", // bg0 dark
+  bgSoft: "#3c3836", // bg1 dark
+};
+// 色相環的に並べたアクセント(セグメント塗り分け用)
+const WHEEL = [GB.red, GB.orange, GB.yellow, GB.green, GB.aqua, GB.blue, GB.purple];
 
 function cv(size = 512): { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; S: number } {
   const c = document.createElement("canvas");
@@ -11,12 +28,12 @@ function cv(size = 512): { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; 
 export function sampleFrames(): HTMLCanvasElement {
   const { c, ctx, S } = cv();
   const g = ctx.createLinearGradient(0, 0, S, S);
-  g.addColorStop(0, "#0b1f3a");
-  g.addColorStop(1, "#3a0b2e");
+  g.addColorStop(0, GB.bg);
+  g.addColorStop(1, GB.bgSoft);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, S, S);
 
-  const colors = ["#f4d35e", "#ee964b", "#f95738", "#5fa8d3", "#faf0ca"];
+  const colors = [GB.yellow, GB.orange, GB.red, GB.blue, GB.cream];
   let i = 0;
   for (let m = 8; m < S / 2 - 6; m += 24) {
     ctx.strokeStyle = colors[i % colors.length];
@@ -24,7 +41,7 @@ export function sampleFrames(): HTMLCanvasElement {
     ctx.strokeRect(m, m, S - 2 * m, S - 2 * m);
     i++;
   }
-  ctx.fillStyle = "#faf0ca";
+  ctx.fillStyle = GB.cream;
   ctx.beginPath();
   ctx.arc(S / 2, S / 2, 16, 0, Math.PI * 2);
   ctx.fill();
@@ -38,24 +55,26 @@ export function sampleCheckerboard(): HTMLCanvasElement {
   const cell = S / n;
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
-      ctx.fillStyle = (x + y) % 2 === 0 ? "#1d3557" : "#e63946";
+      ctx.fillStyle = (x + y) % 2 === 0 ? GB.blue : GB.orange;
       ctx.fillRect(x * cell, y * cell, cell, cell);
     }
   }
   const rg = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-  rg.addColorStop(0, "rgba(255,255,255,0.28)");
-  rg.addColorStop(1, "rgba(0,0,0,0.3)");
+  rg.addColorStop(0, "rgba(251,241,199,0.30)"); // cream で中心を起こす
+  rg.addColorStop(1, "rgba(40,40,40,0.32)"); // bg で外周を締める
   ctx.fillStyle = rg;
   ctx.fillRect(0, 0, S, S);
   return c;
 }
 
-// べき乗 z^n: 色相環 + 同心円。n 回対称が映える。
+// べき乗 z^n: アクセント色の扇 + 同心円。n 回対称が映える。
 export function sampleWheel(): HTMLCanvasElement {
   const { c, ctx, S } = cv();
   const cx = S / 2;
   const cy = S / 2;
-  const seg = 24;
+  const seg = WHEEL.length * 3; // 環を3周ぶん刻んで滑らかに
+  ctx.fillStyle = GB.bg;
+  ctx.fillRect(0, 0, S, S);
   for (let i = 0; i < seg; i++) {
     const a0 = (i / seg) * Math.PI * 2;
     const a1 = ((i + 1) / seg) * Math.PI * 2;
@@ -63,10 +82,10 @@ export function sampleWheel(): HTMLCanvasElement {
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, S * 0.72, a0, a1);
     ctx.closePath();
-    ctx.fillStyle = `hsl(${(i / seg) * 360}, 70%, 55%)`;
+    ctx.fillStyle = WHEEL[i % WHEEL.length];
     ctx.fill();
   }
-  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.strokeStyle = "rgba(251,241,199,0.6)";
   ctx.lineWidth = 3;
   for (let r = 36; r < S / 2; r += 36) {
     ctx.beginPath();
@@ -79,13 +98,13 @@ export function sampleWheel(): HTMLCanvasElement {
 // 複素 exp: 縦縞。exp 写像で縞が同心円・螺旋へ変わる。
 export function sampleStripes(): HTMLCanvasElement {
   const { c, ctx, S } = cv();
-  const n = 12;
+  const n = WHEEL.length * 2;
   const w = S / n;
   for (let i = 0; i < n; i++) {
-    ctx.fillStyle = `hsl(${(i / n) * 300 + 20}, 65%, ${i % 2 ? 45 : 60}%)`;
+    ctx.fillStyle = WHEEL[i % WHEEL.length];
     ctx.fillRect(i * w, 0, w, S);
   }
-  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fillStyle = "rgba(251,241,199,0.18)";
   for (let y = 0; y < S; y += w) {
     ctx.fillRect(0, y, S, 3);
   }
