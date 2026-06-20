@@ -95,6 +95,41 @@ export function sampleWheel(): HTMLCanvasElement {
   return c;
 }
 
+// Möbius(二重渦): 格子 + 2つの不動点マーカー。渦が2極へ巻き込まれる様子が見える。
+export function samplePlaid(): HTMLCanvasElement {
+  const { c, ctx, S } = cv();
+  ctx.fillStyle = GB.cream;
+  ctx.fillRect(0, 0, S, S);
+  // 斜め格子(プレイド)
+  const step = S / 12;
+  ctx.lineWidth = 5;
+  for (let i = -12; i < 24; i++) {
+    ctx.strokeStyle = WHEEL[(i + 12) % WHEEL.length];
+    ctx.beginPath();
+    ctx.moveTo(i * step, 0);
+    ctx.lineTo(i * step + S, S);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i * step, S);
+    ctx.lineTo(i * step + S, 0);
+    ctx.stroke();
+  }
+  // 2つの不動点(左=湧き出し青 / 右=吸い込み赤)
+  const mark = (x: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, S / 2, S * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = GB.cream;
+    ctx.beginPath();
+    ctx.arc(x, S / 2, S * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  mark(S * 0.25, GB.blue);
+  mark(S * 0.75, GB.red);
+  return c;
+}
+
 // 複素 exp: 縦縞。exp 写像で縞が同心円・螺旋へ変わる。
 export function sampleStripes(): HTMLCanvasElement {
   const { c, ctx, S } = cv();

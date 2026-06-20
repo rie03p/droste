@@ -92,9 +92,9 @@ export default function App() {
     [square, texDims.width, texDims.height]
   );
 
-  // テクスチャ: 自己相似系=ビュー比レベル0(cover) / 他=正方形クロップ(square)
-  const texture = usesWindow ? cover : square;
-  const imageVersion = `src:${usesWindow ? "cover" : "square"}:${square.width}:${view.width}`;
+  // テクスチャ: 自己相似系(reduceToCell)=ビュー比レベル0(cover) / 他=正方形クロップ(square)
+  const texture = effect.selfSimilar ? cover : square;
+  const imageVersion = `src:${effect.selfSimilar ? "cover" : "square"}:${square.width}:${view.width}`;
 
   return (
     <div className="app">

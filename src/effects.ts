@@ -2,7 +2,7 @@
 // 各エフェクトは「出力ピクセル座標 z(複素数) → 元画像のサンプリング座標」を計算する
 // フラグメントシェーダを持つ。共通部分(complex math + 座標生成)は COMMON に集約する。
 
-import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes } from "./samples";
+import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes, samplePlaid } from "./samples";
 
 export type ParamSpec = {
   key: string; // uniform 名は u_<key>
@@ -24,9 +24,12 @@ export type Effect = {
   animPeriod: (p: Record<string, number>) => number;
   // エフェクトの効果が分かる代表的な初期画像(手続き的生成)
   sample: () => HTMLCanvasElement;
-  // 「ズームする範囲を指定」(DrostePanel の窓)を使う自己相似系か。
-  // true のとき窓から f=1/size を決めて u_zoomF に注入し、テクスチャはビュー比の cover を使う。
+  // 「ズームする範囲を指定」(DrostePanel の窓)を使うか。
+  // true のとき窓から f=1/size を決めて u_zoomF に注入し、窓の中心/大きさをシェーダへ渡す。
   usesWindow?: boolean;
+  // [0,1]² へ畳む自己相似系(reduceToCell)か。true ならテクスチャにビュー比 cover を使う。
+  // false の効果は正方形クロップを fract 等でサンプルする。
+  selfSimilar?: boolean;
 };
 
 export const VERTEX_SHADER = /* glsl */ `#version 300 es
@@ -199,6 +202,34 @@ void main(){
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
+// --- Möbius 変換(ロクソドロミック・ドロステ) ---
+// 2つの不動点(湧き出し/吸い込み)をもつメビウス変換 z↦μ(z) の反復による自己相似。
+// 正規座標 w=(z-α)/(z-β) では純粋な拡大回転 w↦μw になり、log をとると平行移動になる。
+// 1周期 lnf へ畳むと、2つの不動点をめぐる二重渦のドロステ(無限ズーム)になる。
+//  - 窓(ズーム範囲): size から f=|μ| を、中心から不動点ペアの中点を決める。
+//  - twist: 角度方向の流れ(0=渦の締まりのみ, 整数で継ぎ目なし=Escher 螺旋と同じ理屈)。
+//  - sep: 2不動点の間隔(中点からの距離)。小さいほど中心に寄った密な二重渦。
+const MOBIUS = /* glsl */ `
+uniform float u_zoomF;   // f=|μ|(窓 size から)
+uniform vec3  u_win;     // (cx, cy, size) — xy=不動点ペアの中点
+uniform float u_twist;   // ねじれ(角度方向の流れ)
+uniform float u_sep;     // 不動点の間隔
+void main(){
+  vec2 z = baseZ() - (u_win.xy - 0.5);   // 中点を窓の位置へ
+  vec2 a = vec2(u_sep, 0.0);             // 不動点 α=+a(吸い込み), β=-a(湧き出し)
+  vec2 w0 = cDiv(z - a, z + a);          // α→0, β→∞ の正規座標
+  vec2 L  = cLog(w0);                    // ロクソドロミック流は L 平面の平行移動
+  float lnf = log(max(u_zoomF, 1.0001));
+  vec2 beta = vec2(1.0, -u_twist * lnf / TAU);
+  vec2 Lt   = cMul(beta, L);
+  Lt.x     -= u_offset;                  // ドロステズーム(周期 lnf)
+  Lt.x      = mod(Lt.x, lnf);            // 1周期へ畳む(自己相似タイル)
+  vec2 w  = cExp(Lt);
+  vec2 zp = cMul(a, cDiv(vec2(1.0, 0.0) + w, vec2(1.0, 0.0) - w)); // 逆写像 z=a(1+w)/(1-w)
+  vec2 uv = fract(0.5 + 0.5 * zp);
+  outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
+}`;
+
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
@@ -215,6 +246,7 @@ export const EFFECTS: Effect[] = [
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleFrames,
     usesWindow: true,
+    selfSimilar: true,
   },
   {
     id: "escher",
@@ -230,6 +262,7 @@ export const EFFECTS: Effect[] = [
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
     usesWindow: true,
+    selfSimilar: true,
   },
   {
     id: "log",
@@ -242,6 +275,7 @@ export const EFFECTS: Effect[] = [
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleCheckerboard,
     usesWindow: true,
+    selfSimilar: true,
   },
   {
     id: "power",
@@ -270,6 +304,21 @@ export const EFFECTS: Effect[] = [
     params: [{ key: "scale", label: "スケール", min: 1, max: 12, step: 0.1, default: 6 }],
     animPeriod: () => TAU,
     sample: sampleStripes,
+  },
+  {
+    id: "mobius",
+    name: "Möbius 変換(二重渦ドロステ)",
+    description:
+      "2つの不動点をもつロクソドロミックなメビウス変換による自己相似。正規座標で w↦μw になり、湧き出し/吸い込みをめぐる二重渦の無限ズームに。ズーム範囲で渦の中心と締まり f を、間隔で2不動点の開きを決める。ねじれ整数で継ぎ目なし。",
+    fragment: COMMON + MOBIUS,
+    params: [
+      { key: "twist", label: "ねじれ(整数で継ぎ目なし)", min: -6, max: 6, step: 0.01, default: 0 },
+      { key: "sep", label: "不動点の間隔", min: 0.05, max: 1.2, step: 0.01, default: 0.5 },
+      { key: "zoomF", label: "f", min: 1.2, max: 64, step: 0.1, default: 3, hidden: true },
+    ],
+    animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
+    sample: samplePlaid,
+    usesWindow: true,
   },
 ];
 
