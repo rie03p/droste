@@ -82,10 +82,12 @@
 }
 .editor-preview {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: 6px;
   background: #000;
   image-rendering: auto;
+  cursor: crosshair;
+  touch-action: none;
 }
 .var {
   font-family: ui-monospace, monospace;
@@ -215,6 +217,75 @@
   font-size: 11px;
   line-height: 1.5;
   color: #82829a;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slider-row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: #7c3aed;
+}
+.slider-num {
+  width: 60px;
+  flex: none;
+  padding: 4px 6px;
+  background: #20202c;
+  color: #eee;
+  border: 1px solid #34344a;
+  border-radius: 5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* 数値入力のスピナーは詰まるので非表示(値はスライダー/キー入力で操作) */
+.slider-num::-webkit-outer-spin-button,
+.slider-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.slider-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.num-stepper {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+.num-stepper .slider-num {
+  width: 52px;
+  border-radius: 0;
+}
+.num-step {
+  width: 22px;
+  height: 26px;
+  flex: none;
+  padding: 0;
+  background: #2a2a3a;
+  color: #cfcfe0;
+  border: 1px solid #34344a;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.num-step:first-child {
+  border-radius: 5px 0 0 5px;
+}
+.num-step:last-child {
+  border-radius: 0 5px 5px 0;
+}
+.num-step:hover {
+  background: #34344a;
+}
+.num-step:active {
+  background: #7c3aed;
+  color: #fff;
 }
 
 .slider input[type="range"] {

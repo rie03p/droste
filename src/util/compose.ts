@@ -9,6 +9,21 @@ export type Transform = {
 
 export const IDENTITY_TRANSFORM: Transform = { scale: 1, tx: 0, ty: 0, rot: 0 };
 
+// GPU が一辺に許すテクスチャの最大サイズ。これを超えるとアップロードに失敗するので
+// 入力解像度をここまでで頭打ちにする（実質「上限なし」だが安全側にクランプ）。一度引いてキャッシュ。
+let _maxTex = 0;
+export function maxTextureSize(): number {
+  if (_maxTex) return _maxTex;
+  try {
+    const c = document.createElement("canvas");
+    const gl = (c.getContext("webgl2") ?? c.getContext("webgl")) as WebGLRenderingContext | null;
+    _maxTex = gl ? (gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) : 4096;
+  } catch {
+    _maxTex = 4096;
+  }
+  return _maxTex || 4096;
+}
+
 export function composeSquare(src: CanvasImageSource, t: Transform, size: number): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = c.height = size;
