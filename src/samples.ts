@@ -130,6 +130,45 @@ export function samplePlaid(): HTMLCanvasElement {
   return c;
 }
 
+// Hyperbolic Tiling: 非対称な motif。タイルの繰り返しと向きの変化が読み取れるよう
+// 角ごとに違う形を置く。
+export function sampleHyper(): HTMLCanvasElement {
+  const { c, ctx, S } = cv();
+  ctx.fillStyle = GB.cream;
+  ctx.fillRect(0, 0, S, S);
+  // 背景の細格子
+  ctx.strokeStyle = "rgba(168,153,132,0.5)"; // fg4
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo((i / 8) * S, 0);
+    ctx.lineTo((i / 8) * S, S);
+    ctx.moveTo(0, (i / 8) * S);
+    ctx.lineTo(S, (i / 8) * S);
+    ctx.stroke();
+  }
+  // 左上: 赤い三角
+  ctx.fillStyle = GB.red;
+  ctx.beginPath();
+  ctx.moveTo(S * 0.1, S * 0.1);
+  ctx.lineTo(S * 0.42, S * 0.14);
+  ctx.lineTo(S * 0.14, S * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  // 中央: 青い円
+  ctx.fillStyle = GB.blue;
+  ctx.beginPath();
+  ctx.arc(S * 0.55, S * 0.5, S * 0.14, 0, Math.PI * 2);
+  ctx.fill();
+  // 下: オレンジの帯
+  ctx.fillStyle = GB.orange;
+  ctx.fillRect(0, S * 0.8, S, S * 0.12);
+  // 右上: 緑の四角
+  ctx.fillStyle = GB.green;
+  ctx.fillRect(S * 0.74, S * 0.12, S * 0.16, S * 0.16);
+  return c;
+}
+
 // 複素 exp: 縦縞。exp 写像で縞が同心円・螺旋へ変わる。
 export function sampleStripes(): HTMLCanvasElement {
   const { c, ctx, S } = cv();

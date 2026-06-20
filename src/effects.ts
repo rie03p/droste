@@ -2,7 +2,7 @@
 // 各エフェクトは「出力ピクセル座標 z(複素数) → 元画像のサンプリング座標」を計算する
 // フラグメントシェーダを持つ。共通部分(complex math + 座標生成)は COMMON に集約する。
 
-import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes, samplePlaid } from "./samples";
+import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes, samplePlaid, sampleHyper } from "./samples";
 
 export type ParamSpec = {
   key: string; // uniform 名は u_<key>
@@ -256,6 +256,48 @@ void main(){
   outColor = vec4(applyFog(col * clamp(shade, 0.0, 1.0)), 1.0);
 }`;
 
+// --- Hyperbolic Tiling(Poincaré 円板の {p,q} タイリング)---
+// 中心に p 回対称の頂点を置いた {p,q} 双曲タイリング。出力点を基本三角形(角 π/p, π/q, π/2)
+// へ「2本の直線鏡(中心まわり)」と「1つの測地線=円鏡」で折り返し、その三角形内の位置で
+// 元画像をサンプルする。円板の外側は単位円で反転して内側へ写し、画面全体を埋める。
+const HYPERBOLIC = /* glsl */ `
+uniform float u_p;       // p(中心頂点の対称数)
+uniform float u_q;       // q(各タイルの辺数)
+void main(){
+  vec2 z = baseZ();
+  // 回転スピン(p-fold なので周期 2π/p でシームレス)
+  float cs = cos(u_offset), sn = sin(u_offset);
+  z = mat2(cs, -sn, sn, cs) * z;
+  // 単位円の外は反転して内側へ(画面全体を埋める)
+  if (dot(z, z) >= 1.0) z = z / dot(z, z);
+
+  float p = max(u_p, 3.0), q = max(u_q, 3.0);
+  float pa = PI / p;
+  // 測地線の円鏡(単位円・実軸に直交)。双曲右三角形の関係 cosh(c)=cos(π/q)/sin(π/p)。
+  float coshc = max(cos(PI / q) / sin(pa), 1.0001); // 非双曲な (p,q) はクランプ
+  float xB = sqrt((coshc - 1.0) / (coshc + 1.0));    // tanh(c/2)=頂点 B の半径
+  float d  = (xB * xB + 1.0) / (2.0 * xB);           // 円鏡の中心(実軸上)
+  float r  = sqrt(max(d * d - 1.0, 0.0));            // 円鏡の半径
+  vec2  cc = vec2(d, 0.0);
+
+  // 基本三角形へ折り返す(角度を p のくさびへ → 円鏡の内側なら反転、を繰り返す)
+  for (int i = 0; i < 24; i++) {
+    float a = atan(z.y, z.x);
+    float rho = length(z);
+    a = mod(a, 2.0 * pa);
+    if (a > pa) a = 2.0 * pa - a;       // 二面体対称(直線鏡2本)
+    z = rho * vec2(cos(a), sin(a));
+    vec2 dv = z - cc;
+    float dd = dot(dv, dv);
+    if (dd < r * r) z = cc + (r * r) * dv / dd;  // 円鏡で外側へ戻す
+    else break;
+  }
+  // 基本三角形 → 画像 [0,1]²(くさび角を u、A→辺 BC の半径を v)
+  float u = clamp(atan(z.y, z.x) / pa, 0.0, 1.0);
+  float v = clamp(length(z) / xB, 0.0, 1.0);
+  outColor = vec4(applyFog(sampleImg(vec2(u, v)).rgb), 1.0);
+}`;
+
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
@@ -358,6 +400,19 @@ export const EFFECTS: Effect[] = [
     ],
     animPeriod: () => TAU,
     sample: sampleWheel,
+  },
+  {
+    id: "hyperbolic",
+    name: "Hyperbolic Tiling ({p,q})",
+    description:
+      "Poincaré 円板の {p,q} 双曲タイリング。中心に p 回対称の頂点を置き、出力点を基本三角形へ折り返して各タイルに元画像を敷き詰める。境界(単位円)に近づくほどタイルが無限に小さくなる。回転でシームレスにアニメーション。(p-2)(q-2)>4 のとき双曲。",
+    fragment: COMMON + HYPERBOLIC,
+    params: [
+      { key: "p", label: "p(中心の対称数)", min: 3, max: 10, step: 1, default: 5 },
+      { key: "q", label: "q(タイルの辺数)", min: 3, max: 10, step: 1, default: 4 },
+    ],
+    animPeriod: (p) => (2 * Math.PI) / Math.max(p.p ?? 5, 3),
+    sample: sampleHyper,
   },
 ];
 
