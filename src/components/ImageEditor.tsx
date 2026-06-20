@@ -50,7 +50,9 @@ const PREVIEW_LONG = 240; // プレビューの内部解像度(長辺)
 export function ImageEditor(props: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
   const { original, transform } = props;
-  const [drag, setDrag] = useState<null | "move" | "resize">(null);
+  // ドラッグ中の状態。move のときは掴んだ点と枠中心のオフセット(画素)を保持し、
+  // 相対移動にする(クリックした瞬間に枠がカーソル位置へ飛ぶのを防ぐ)。
+  const [drag, setDrag] = useState<null | { mode: "move" | "resize"; ox: number; oy: number }>(null);
 
   const iw = (original as HTMLImageElement | HTMLCanvasElement | null)?.width || 1;
   const ih = (original as HTMLImageElement | HTMLCanvasElement | null)?.height || 1;
@@ -93,9 +95,9 @@ export function ImageEditor(props: Props) {
     return { x: ((e.clientX - r.left) / r.width) * iw, y: ((e.clientY - r.top) / r.height) * ih };
   };
 
-  const apply = (p: { x: number; y: number }, mode: "move" | "resize") => {
+  const apply = (p: { x: number; y: number }, mode: "move" | "resize", ox = 0, oy = 0) => {
     if (mode === "move") {
-      set({ cx: clamp(p.x / iw, 0, 1), cy: clamp(p.y / ih, 0, 1) });
+      set({ cx: clamp((p.x + ox) / iw, 0, 1), cy: clamp((p.y + oy) / ih, 0, 1) });
     } else {
       // 回転フレームでの中心からの距離で一辺を決める
       const dx = p.x - spec.cx * iw;
@@ -134,10 +136,10 @@ export function ImageEditor(props: Props) {
           const hx = spec.cx * iw + (c * (D / 2) - s * (D / 2));
           const hy = spec.cy * ih + (s * (D / 2) + c * (D / 2));
           const mode = Math.hypot(p.x - hx, p.y - hy) < 0.07 * m ? "resize" : "move";
-          setDrag(mode);
-          apply(p, mode);
+          // 掴んだ点と枠中心のオフセットを保持。即適用はしない(クリックでジャンプさせない)。
+          setDrag({ mode, ox: spec.cx * iw - p.x, oy: spec.cy * ih - p.y });
         }}
-        onPointerMove={(e) => drag && apply(toPx(e), drag)}
+        onPointerMove={(e) => drag && apply(toPx(e), drag.mode, drag.ox, drag.oy)}
         onPointerUp={() => setDrag(null)}
       />
 
