@@ -30,6 +30,12 @@ export type Effect = {
   // [0,1]² へ畳む自己相似系(reduceToCell)か。true ならテクスチャにビュー比 cover を使う。
   // false の効果は正方形クロップを fract 等でサンプルする。
   selfSimilar?: boolean;
+  // 状態をもつシミュレーション系(ping-pong FBO)。指定すると Renderer が
+  // seed→step×N→display(=fragment) のマルチパスで描く。
+  sim?: {
+    seedFragment: string; // 初期状態を元画像から焼くシェーダ(出力 = (U,V,0,1))
+    stepFragment: string; // 1ステップ更新するシェーダ(u_state を読み次状態を出力)
+  };
 };
 
 export const VERTEX_SHADER = /* glsl */ `#version 300 es
@@ -298,6 +304,73 @@ void main(){
   outColor = vec4(applyFog(sampleImg(vec2(u, v)).rgb), 1.0);
 }`;
 
+// --- Reaction Diffusion(Gray-Scott)---
+// U,V 2 化学種の反応拡散をシミュレートする。状態は (U,V) を RG に持つテクスチャで、
+// ping-pong FBO で毎フレーム数ステップ進める。元画像の暗い領域に V を蒔いて種にする。
+//   dU = Du·∇²U − U·V² + F·(1−U)
+//   dV = Dv·∇²V + U·V² − (F+K)·V
+// COMMON は使わず各シェーダが独立した #version を持つ(座標生成や複素演算は不要)。
+const RD_SEED = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D u_img;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+void main(){
+  vec3 c = texture(u_img, vUv).rgb;
+  float lum = dot(c, vec3(0.299, 0.587, 0.114));
+  float v = (1.0 - lum) > 0.45 ? 0.5 : 0.0;     // 暗い領域に種をまく
+  if (hash(vUv * 900.0) > 0.9975) v = 0.5;       // 微小スペックで核形成を促す
+  outColor = vec4(1.0, v, 0.0, 1.0);             // U=1, V=v
+}`;
+
+const RD_STEP = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D u_state;
+uniform vec2 u_texel;   // 1/解像度
+uniform float u_feed;   // F
+uniform float u_kill;   // K
+void main(){
+  vec2 c = texture(u_state, vUv).xy;
+  // 9点ラプラシアン(中心 -1, 上下左右 0.2, 斜め 0.05)
+  vec2 lap =
+      texture(u_state, vUv + u_texel * vec2(-1.0,  0.0)).xy * 0.2
+    + texture(u_state, vUv + u_texel * vec2( 1.0,  0.0)).xy * 0.2
+    + texture(u_state, vUv + u_texel * vec2( 0.0, -1.0)).xy * 0.2
+    + texture(u_state, vUv + u_texel * vec2( 0.0,  1.0)).xy * 0.2
+    + texture(u_state, vUv + u_texel * vec2(-1.0, -1.0)).xy * 0.05
+    + texture(u_state, vUv + u_texel * vec2( 1.0, -1.0)).xy * 0.05
+    + texture(u_state, vUv + u_texel * vec2(-1.0,  1.0)).xy * 0.05
+    + texture(u_state, vUv + u_texel * vec2( 1.0,  1.0)).xy * 0.05
+    - c;
+  float U = c.x, V = c.y;
+  float reaction = U * V * V;
+  float du = 1.0 * lap.x - reaction + u_feed * (1.0 - U);
+  float dv = 0.5 * lap.y + reaction - (u_feed + u_kill) * V;
+  outColor = vec4(clamp(U + du, 0.0, 1.0), clamp(V + dv, 0.0, 1.0), 0.0, 1.0);
+}`;
+
+const RD_DISPLAY = /* glsl */ `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D u_state;
+uniform sampler2D u_img;
+uniform float u_tint;   // 元画像で色付けする量 0..1
+void main(){
+  float V = texture(u_state, vUv).y;
+  vec3 lo  = vec3(0.157, 0.157, 0.157); // gruvbox bg0
+  vec3 mid = vec3(0.271, 0.522, 0.533); // aqua #458588
+  vec3 hi  = vec3(0.984, 0.502, 0.099); // orange #fe8019
+  vec3 col = mix(lo, mid, smoothstep(0.05, 0.25, V));
+  col = mix(col, hi, smoothstep(0.25, 0.5, V));
+  vec3 img = texture(u_img, vUv).rgb;
+  col = mix(col, col * 0.5 + img * V * 1.5, u_tint); // 元画像で色付け
+  outColor = vec4(col, 1.0);
+}`;
+
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
@@ -413,6 +486,22 @@ export const EFFECTS: Effect[] = [
     ],
     animPeriod: (p) => (2 * Math.PI) / Math.max(p.p ?? 5, 3),
     sample: sampleHyper,
+  },
+  {
+    id: "reaction",
+    name: "Reaction Diffusion (Gray-Scott)",
+    description:
+      "Gray-Scott 反応拡散シミュレーション。元画像の暗い領域に種をまき、フィード率 F とキル率 K に応じて斑点・縞・珊瑚状のパターンが自己組織化する。毎フレーム時間発展する(ズーム/回転アニメは使わない)。種をまき直すには『リセット』。",
+    fragment: RD_DISPLAY,
+    params: [
+      { key: "feed", label: "フィード率 F", min: 0.01, max: 0.1, step: 0.001, default: 0.054 },
+      { key: "kill", label: "キル率 K", min: 0.04, max: 0.07, step: 0.001, default: 0.062 },
+      { key: "tint", label: "元画像で色付け", min: 0, max: 1, step: 0.01, default: 0.4 },
+      { key: "steps", label: "1フレームの反復", min: 1, max: 24, step: 1, default: 10 },
+    ],
+    animPeriod: () => 1,
+    sample: sampleCheckerboard,
+    sim: { seedFragment: RD_SEED, stepFragment: RD_STEP },
   },
 ];
 

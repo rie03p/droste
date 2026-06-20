@@ -154,6 +154,11 @@ export default function App() {
           onFogStr={setFogStr}
         />
         {usesWindow && <DrostePanel texture={cover} rect={drosteRect} onRect={setDrosteRect} />}
+        {effect.sim && (
+          <button className="png-btn" style={{ marginTop: 14 }} onClick={() => rendererRef.current?.reseedSim()}>
+            リセット(種をまき直す)
+          </button>
+        )}
         <ExportPanel
           getRenderer={() => rendererRef.current}
           effect={effect}
