@@ -1,13 +1,17 @@
 {
   "name": "droste-lab",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "oxlint && eslint .",
+    "lint:ox": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "preview": "vite preview",
+    "prepare": "simple-git-hooks"
   },
   "dependencies": {
     "gifenc": "^1.0.3",
@@ -24,8 +28,24 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "lint-staged": "^17.0.7",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm exec lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "oxlint --fix",
+      "oxfmt --write"
+    ],
+    "*.{json,css,html,md}": [
+      "oxfmt --write"
+    ]
   }
 }
