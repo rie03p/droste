@@ -230,6 +230,32 @@ void main(){
   outColor = vec4(applyFog(sampleImg(uv).rgb), 1.0);
 }`;
 
+// --- Newton フラクタル ---
+// f(z)=z^n-1 のニュートン反復 z←z-(z^n-1)/(n·z^{n-1})。各点がどの根(1の n 乗根)へ
+// 収束するかで平面が n 個の流域に分かれ、その境界がフラクタルになる。収束先の根の位置で
+// 元画像をサンプルし、収束までの反復回数で陰影をつけて境界を浮かせる。
+const NEWTON = /* glsl */ `
+uniform float u_power;   // 次数 n(根の数)
+uniform float u_detail;  // 境界の陰影の強さ
+void main(){
+  vec2 z = baseZ() * 1.6;                      // 視野を広げて流域を見せる
+  z = cMul(z, cExp(vec2(0.0, u_offset)));      // 回転アニメ(周期 TAU)
+  float n = u_power;
+  int iters = 40;
+  for (int i = 0; i < 40; i++){
+    vec2 zn1 = cPowR(z, n - 1.0);              // z^{n-1}
+    vec2 fz  = cMul(zn1, z) - vec2(1.0, 0.0);  // z^n - 1
+    vec2 fpz = n * zn1;                        // n·z^{n-1}
+    vec2 dz  = cDiv(fz, fpz);
+    z -= dz;
+    if (dot(dz, dz) < 1e-8) { iters = i; break; }
+  }
+  vec2 uv = fract(0.5 + 0.42 * z);             // 収束した根の位置で画像をサンプル
+  vec3 col = sampleImg(uv).rgb;
+  float shade = 1.0 - u_detail * float(iters) / 40.0;  // 反復が多い=境界付近を暗く
+  outColor = vec4(applyFog(col * clamp(shade, 0.0, 1.0)), 1.0);
+}`;
+
 export const EFFECTS: Effect[] = [
   {
     id: "droste",
@@ -319,6 +345,19 @@ export const EFFECTS: Effect[] = [
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: samplePlaid,
     usesWindow: true,
+  },
+  {
+    id: "newton",
+    name: "Newton フラクタル",
+    description:
+      "f(z)=z^n-1 のニュートン反復。各点がどの根へ収束するかで平面が n 個の流域に分かれ、その境界がフラクタルになる。収束先の根の位置で元画像をサンプルし、反復回数で境界を陰影づけする。回転でアニメーション。",
+    fragment: COMMON + NEWTON,
+    params: [
+      { key: "power", label: "次数 n(根の数)", min: 2, max: 8, step: 1, default: 3 },
+      { key: "detail", label: "境界の陰影", min: 0, max: 1, step: 0.01, default: 0.6 },
+    ],
+    animPeriod: () => TAU,
+    sample: sampleWheel,
   },
 ];
 
