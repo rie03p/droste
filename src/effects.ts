@@ -2,7 +2,14 @@
 // 各エフェクトは「出力ピクセル座標 z(複素数) → 元画像のサンプリング座標」を計算する
 // フラグメントシェーダを持つ。共通部分(complex math + 座標生成)は COMMON に集約する。
 
-import { sampleFrames, sampleCheckerboard, sampleWheel, sampleStripes, samplePlaid, sampleHyper } from "./samples";
+import {
+  sampleFrames,
+  sampleCheckerboard,
+  sampleWheel,
+  sampleStripes,
+  samplePlaid,
+  sampleHyper,
+} from "./samples";
 
 export type ParamSpec = {
   key: string; // uniform 名は u_<key>
@@ -382,7 +389,15 @@ export const EFFECTS: Effect[] = [
       // twist=0 固定で純 Droste。Escher と同じ統合シェーダを使う
       { key: "twist", label: "ねじれ", min: 0, max: 0, step: 1, default: 0, hidden: true },
       // zoomF は窓の大きさ(範囲指定)から決まるので専用 UI で操作する
-      { key: "zoomF", label: "自己相似スケール f", min: 1.2, max: 16, step: 0.1, default: 3, hidden: true },
+      {
+        key: "zoomF",
+        label: "自己相似スケール f",
+        min: 1.2,
+        max: 16,
+        step: 0.1,
+        default: 3,
+        hidden: true,
+      },
     ],
     animPeriod: (p) => Math.log(Math.max(p.zoomF ?? 3, 1.0001)),
     sample: sampleFrames,
@@ -421,7 +436,8 @@ export const EFFECTS: Effect[] = [
   {
     id: "power",
     name: "べき乗 z^n / 累乗根",
-    description: "等角なべき乗写像 z^n。n>1 は万華鏡的な n 回対称の渦、n<1 は累乗根(√z は n=0.5)で多重像が開く。",
+    description:
+      "等角なべき乗写像 z^n。n>1 は万華鏡的な n 回対称の渦、n<1 は累乗根(√z は n=0.5)で多重像が開く。",
     fragment: COMMON + POWER,
     params: [{ key: "power", label: "指数 n", min: 0.25, max: 8, step: 0.05, default: 2 }],
     animPeriod: () => TAU,
@@ -430,7 +446,8 @@ export const EFFECTS: Effect[] = [
   {
     id: "invert",
     name: "反転 1/z",
-    description: "メビウス反転 z↦k/z。中心と無限遠を入れ替え、中心付近を外へ・外周を中心へ巻き込む等角写像。",
+    description:
+      "メビウス反転 z↦k/z。中心と無限遠を入れ替え、中心付近を外へ・外周を中心へ巻き込む等角写像。",
     fragment: COMMON + INVERT,
     params: [{ key: "scale", label: "強さ k", min: 0.05, max: 2, step: 0.01, default: 0.4 }],
     animPeriod: () => TAU,

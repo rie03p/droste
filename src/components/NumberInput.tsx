@@ -29,7 +29,16 @@ function fmt(v: number): string {
 
 // 数値テキスト入力。編集中は外部からの値で文字列を上書きしない(=入力途中の値が
 // 丸め直し/クランプで弾かれて「癖がある」挙動になるのを防ぐ)。確定(blur/Enter)で正規化する。
-export function NumberInput({ value, min, max, step, className, live = true, steppers, onChange }: Props) {
+export function NumberInput({
+  value,
+  min,
+  max,
+  step,
+  className,
+  live = true,
+  steppers,
+  onChange,
+}: Props) {
   const [text, setText] = useState(() => fmt(value));
   const editing = useRef(false);
 
@@ -86,11 +95,23 @@ export function NumberInput({ value, min, max, step, className, live = true, ste
 
   return (
     <span className="num-stepper">
-      <button type="button" className="num-step" aria-label="減らす" tabIndex={-1} onClick={() => nudge(-1)}>
+      <button
+        type="button"
+        className="num-step"
+        aria-label="減らす"
+        tabIndex={-1}
+        onClick={() => nudge(-1)}
+      >
         −
       </button>
       {input}
-      <button type="button" className="num-step" aria-label="増やす" tabIndex={-1} onClick={() => nudge(1)}>
+      <button
+        type="button"
+        className="num-step"
+        aria-label="増やす"
+        tabIndex={-1}
+        onClick={() => nudge(1)}
+      >
         +
       </button>
     </span>

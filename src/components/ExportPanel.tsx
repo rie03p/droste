@@ -88,8 +88,14 @@ export function ExportPanel(props: Props) {
         アニメーションの 1 周期をシームレスループ GIF に。
       </p>
 
-      <label className="field-label" style={{ marginTop: 10 }}>動き</label>
-      <select className="full-select" value={mode} onChange={(e) => setMode(e.target.value as ExportMode)}>
+      <label className="field-label" style={{ marginTop: 10 }}>
+        動き
+      </label>
+      <select
+        className="full-select"
+        value={mode}
+        onChange={(e) => setMode(e.target.value as ExportMode)}
+      >
         {MODES.map((m) => (
           <option key={m.value} value={m.value}>
             {m.label}
@@ -102,7 +108,9 @@ export function ExportPanel(props: Props) {
           長辺(px)
           <select value={size} onChange={(e) => setSize(+e.target.value)}>
             {[240, 360, 480, 600, 720].map((s) => (
-              <option key={s} value={s}>{s}px</option>
+              <option key={s} value={s}>
+                {s}px
+              </option>
             ))}
           </select>
         </label>
@@ -110,7 +118,9 @@ export function ExportPanel(props: Props) {
           フレーム
           <select value={frames} onChange={(e) => setFrames(+e.target.value)}>
             {[24, 36, 48, 60, 90].map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
           </select>
         </label>
@@ -118,7 +128,9 @@ export function ExportPanel(props: Props) {
           FPS
           <select value={fps} onChange={(e) => setFps(+e.target.value)}>
             {[12, 18, 24, 30].map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
           </select>
         </label>
@@ -127,7 +139,9 @@ export function ExportPanel(props: Props) {
             回転周回数
             <select value={rotateTurns} onChange={(e) => setRotateTurns(+e.target.value)}>
               {[1, 2, 3, 4].map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </label>
@@ -135,7 +149,9 @@ export function ExportPanel(props: Props) {
       </div>
 
       <button className="export-btn" onClick={run} disabled={progress !== null}>
-        {progress === null ? "GIF を生成してダウンロード" : `生成中… ${Math.round(progress * 100)}%`}
+        {progress === null
+          ? "GIF を生成してダウンロード"
+          : `生成中… ${Math.round(progress * 100)}%`}
       </button>
       {progress !== null && (
         <div className="progress">

@@ -7,7 +7,13 @@ import { DrostePanel, type DrosteRect } from "./components/DrostePanel";
 import { ExportPanel } from "./components/ExportPanel";
 import { EFFECTS, getEffect } from "./effects";
 import { dimsFromLongEdge } from "./aspects";
-import { composeSquare, makeCover, maxTextureSize, IDENTITY_TRANSFORM, type Transform } from "./util/compose";
+import {
+  composeSquare,
+  makeCover,
+  maxTextureSize,
+  IDENTITY_TRANSFORM,
+  type Transform,
+} from "./util/compose";
 import type { Renderer } from "./webgl/Renderer";
 import "./App.css";
 
@@ -74,7 +80,10 @@ export default function App() {
   const texDims = useMemo(() => dimsFromLongEdge(texLong, aspect), [texLong, aspect]);
 
   // トリミング結果を正方形に焼き込む(高解像度でズーム時の粗さを抑える)
-  const square = useMemo(() => composeSquare(original, transform, texLong), [original, transform, texLong]);
+  const square = useMemo(
+    () => composeSquare(original, transform, texLong),
+    [original, transform, texLong],
+  );
 
   // 「ズームする範囲を指定」を使う自己相似系か。窓から f=1/size を決めて u_zoomF に注入する。
   const usesWindow = !!effect.usesWindow;
@@ -83,13 +92,13 @@ export default function App() {
   const zoomF = 1 / drosteRect.size;
   const renderParams = useMemo(
     () => (usesWindow ? { ...params, zoomF } : params),
-    [usesWindow, params, zoomF]
+    [usesWindow, params, zoomF],
   );
   // 自己相似系のレベル0画像(ビュー比)。
   // 描画解像度ではなくテクスチャ解像度(texDims)で焼き、ズーム時もネイティブの解像感を保つ。
   const cover = useMemo(
     () => makeCover(square, texDims.width, texDims.height),
-    [square, texDims.width, texDims.height]
+    [square, texDims.width, texDims.height],
   );
 
   // テクスチャ: 自己相似系(reduceToCell)=ビュー比レベル0(cover) / 他=正方形クロップ(square)
@@ -155,7 +164,11 @@ export default function App() {
         />
         {usesWindow && <DrostePanel texture={cover} rect={drosteRect} onRect={setDrosteRect} />}
         {effect.sim && (
-          <button className="png-btn" style={{ marginTop: 14 }} onClick={() => rendererRef.current?.reseedSim()}>
+          <button
+            className="png-btn"
+            style={{ marginTop: 14 }}
+            onClick={() => rendererRef.current?.reseedSim()}
+          >
             リセット(種をまき直す)
           </button>
         )}

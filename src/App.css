@@ -57,8 +57,7 @@
   justify-content: center;
   min-height: 0;
   overflow: hidden;
-  background:
-    repeating-conic-gradient(var(--stage-a) 0% 25%, var(--stage-b) 0% 50%) 50% / 28px 28px;
+  background: repeating-conic-gradient(var(--stage-a) 0% 25%, var(--stage-b) 0% 50%) 50% / 28px 28px;
   padding: 24px;
 }
 
@@ -80,7 +79,9 @@
   color: var(--text-faint);
   cursor: pointer;
   margin-bottom: 18px;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 .uploader:hover {
   border-color: var(--accent);

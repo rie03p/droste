@@ -52,7 +52,9 @@ export function ImageEditor(props: Props) {
   const { original, transform } = props;
   // ドラッグ中の状態。move のときは掴んだ点と枠中心のオフセット(画素)を保持し、
   // 相対移動にする(クリックした瞬間に枠がカーソル位置へ飛ぶのを防ぐ)。
-  const [drag, setDrag] = useState<null | { mode: "move" | "resize"; ox: number; oy: number }>(null);
+  const [drag, setDrag] = useState<null | { mode: "move" | "resize"; ox: number; oy: number }>(
+    null,
+  );
 
   const iw = (original as HTMLImageElement | HTMLCanvasElement | null)?.width || 1;
   const ih = (original as HTMLImageElement | HTMLCanvasElement | null)?.height || 1;
@@ -143,10 +145,46 @@ export function ImageEditor(props: Props) {
         onPointerUp={() => setDrag(null)}
       />
 
-      <Slider label="切り出しサイズ" hint="小=寄る" min={SIZE_MIN} max={SIZE_MAX} step={0.01} value={spec.size} steppers onChange={(v) => set({ size: v })} />
-      <Slider label="横位置" hint="0..1" min={0} max={1} step={0.005} value={spec.cx} steppers onChange={(v) => set({ cx: v })} />
-      <Slider label="縦位置" hint="0..1" min={0} max={1} step={0.005} value={spec.cy} steppers onChange={(v) => set({ cy: v })} />
-      <Slider label="傾き" hint="θ rad" min={0} max={Math.PI * 2} step={0.01} value={spec.rot} steppers onChange={(v) => set({ rot: v })} />
+      <Slider
+        label="切り出しサイズ"
+        hint="小=寄る"
+        min={SIZE_MIN}
+        max={SIZE_MAX}
+        step={0.01}
+        value={spec.size}
+        steppers
+        onChange={(v) => set({ size: v })}
+      />
+      <Slider
+        label="横位置"
+        hint="0..1"
+        min={0}
+        max={1}
+        step={0.005}
+        value={spec.cx}
+        steppers
+        onChange={(v) => set({ cx: v })}
+      />
+      <Slider
+        label="縦位置"
+        hint="0..1"
+        min={0}
+        max={1}
+        step={0.005}
+        value={spec.cy}
+        steppers
+        onChange={(v) => set({ cy: v })}
+      />
+      <Slider
+        label="傾き"
+        hint="θ rad"
+        min={0}
+        max={Math.PI * 2}
+        step={0.01}
+        value={spec.rot}
+        steppers
+        onChange={(v) => set({ rot: v })}
+      />
     </div>
   );
 }

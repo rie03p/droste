@@ -68,7 +68,10 @@ export function ShaderCanvas(props: Props) {
       if (r) {
         const period = s.effect.animPeriod(s.params);
         if (s.animateZoom) {
-          zoomPhaseRef.current = wrap(zoomPhaseRef.current + dt * s.zoomSpeed * s.zoomDir * period, period);
+          zoomPhaseRef.current = wrap(
+            zoomPhaseRef.current + dt * s.zoomSpeed * s.zoomDir * period,
+            period,
+          );
         }
         if (s.animateRotate) {
           rotPhaseRef.current = wrap(rotPhaseRef.current + dt * s.rotateSpeed * TAU, TAU);

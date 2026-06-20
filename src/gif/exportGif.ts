@@ -33,8 +33,25 @@ const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()
 // - rotate: 回転を 0→turns*TAU で回す
 // - both : 上の両方を同時に
 export async function exportGif(renderer: Renderer, opts: ExportOptions): Promise<Blob> {
-  const { effect, params, viewScale, rotate, mode, rotateTurns, zoomDir, fogR, fogSoft, fogStr, winX, winY, winSize, width, height, frames, fps } =
-    opts;
+  const {
+    effect,
+    params,
+    viewScale,
+    rotate,
+    mode,
+    rotateTurns,
+    zoomDir,
+    fogR,
+    fogSoft,
+    fogStr,
+    winX,
+    winY,
+    winSize,
+    width,
+    height,
+    frames,
+    fps,
+  } = opts;
 
   const out = document.createElement("canvas");
   out.width = width;
@@ -53,7 +70,19 @@ export async function exportGif(renderer: Renderer, opts: ExportOptions): Promis
     const turns = mode === "zoom" ? 0 : rotateTurns;
     const frameRotate = rotate + turns * TAU * t;
 
-    renderer.render({ effect, params, viewScale, rotate: frameRotate, offset, fogR, fogSoft, fogStr, winX, winY, winSize });
+    renderer.render({
+      effect,
+      params,
+      viewScale,
+      rotate: frameRotate,
+      offset,
+      fogR,
+      fogSoft,
+      fogStr,
+      winX,
+      winY,
+      winSize,
+    });
     ctx.drawImage(renderer.canvas, 0, 0, width, height);
     const { data } = ctx.getImageData(0, 0, width, height);
 

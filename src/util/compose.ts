@@ -24,7 +24,11 @@ export function maxTextureSize(): number {
   return _maxTex || 4096;
 }
 
-export function composeSquare(src: CanvasImageSource, t: Transform, size: number): HTMLCanvasElement {
+export function composeSquare(
+  src: CanvasImageSource,
+  t: Transform,
+  size: number,
+): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = c.height = size;
   const ctx = c.getContext("2d")!;
