@@ -1,6 +1,11 @@
 .app {
   display: grid;
   grid-template-columns: 340px 1fr;
+  /* 行高をビューポートに固定する。行指定が無いと暗黙の auto 行が内容
+     (サイドバーや canvas)に合わせて 100vh を超えて伸び、サイドバーの
+     スクロールが効かず canvas も max-height: 100% の基準ごと伸びてはみ出す。
+     min を 0 にし、子側の min-height: 0 と併せて最小コンテンツ寄与を断つ。 */
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
 }
@@ -8,6 +13,7 @@
 .sidebar {
   padding: 20px;
   overflow-y: auto;
+  min-height: 0;
   background: var(--panel);
   border-right: 1px solid var(--border);
 }
@@ -49,6 +55,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+  overflow: hidden;
   background:
     repeating-conic-gradient(var(--stage-a) 0% 25%, var(--stage-b) 0% 50%) 50% / 28px 28px;
   padding: 24px;
